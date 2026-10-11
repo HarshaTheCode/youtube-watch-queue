@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Watch Queue</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="header-brand">
+        <svg class="header-logo" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+        <h1 class="header-title">Watch Queue</h1>
+      </div>
+      <a href="https://www.youtube.com" target="_blank" class="btn-open-yt" title="Open YouTube">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </a>
+    </header>
+
+    <!-- Queue Stats Summary -->
+    <section class="stats-bar">
+      <div class="stat-pill" id="stat-total">
+        <span class="stat-num" id="total-count">0</span>
+        <span class="stat-label">Total</span>
+      </div>
+      <div class="stat-pill" id="stat-in-progress">
+        <span class="stat-num" id="progress-count">0</span>
+        <span class="stat-label">In Progress</span>
+      </div>
+      <div class="stat-pill" id="stat-watched">
+        <span class="stat-num" id="watched-count">0</span>
+        <span class="stat-label">Watched</span>
+      </div>
+    </section>
+
+    <!-- Quick Action Bar -->
+    <div class="actions-bar">
+      <button class="btn-action" id="btn-clear-watched" disabled>
+        Clear Watched
+      </button>
+      <button class="btn-action-secondary" id="btn-toggle-settings" title="Queue Settings">
+        ⚙ Settings
+      </button>
+    </div>
+
+    <!-- Collapsible Settings Panel -->
+    <div class="settings-panel hidden" id="settings-panel">
+      <div class="setting-row">
+        <label for="setting-threshold">Watched Threshold:</label>
+        <select id="setting-threshold">
+          <option value="85">85%</option>
+          <option value="90" selected>90% (Standard)</option>
+          <option value="95">95%</option>
+          <option value="100">100%</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label for="setting-expanded">Shelf default state:</label>
+        <select id="setting-expanded">
+          <option value="true">Expanded</option>
+          <option value="false">Collapsed</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Video Queue List -->
+    <main class="queue-list-container" id="queue-list-container">
+      <div class="empty-state" id="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+        <p class="empty-title">Queue is empty</p>
+        <p class="empty-desc">Bookmark videos on YouTube home, subscriptions, or trending to build your watch list.</p>
+      </div>
+      <ul class="queue-list" id="queue-list"></ul>
+    </main>
+
+    <!-- Footer Toast -->
+    <div class="popup-toast hidden" id="popup-toast">
+      <span id="popup-toast-msg"></span>
+      <button id="popup-toast-undo">UNDO</button>
+    </div>
+  </div>
+
+  <script src="../data/constants.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

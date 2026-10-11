@@ -1,0 +1,17 @@
+{
+  "name": "youtube-watch-queue",
+  "version": "1.0.0",
+  "description": "Chrome Extension (MV3) to bookmark YouTube videos into a collapsible top shelf with watch progress tracking.",
+  "scripts": {
+    "generate-icons": "node scripts/generate-icons.js",
+    "test:check": "node scripts/validate-syntax.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "youtube",
+    "watch-queue",
+    "manifest-v3"
+  ],
+  "author": "",
+  "license": "MIT"
+}

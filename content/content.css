@@ -1,0 +1,701 @@
+/**
+ * YouTube Watch Queue - Content Stylesheet
+ * Strictly scoped using the .ytq- prefix to prevent style bleeding.
+ */
+
+:root {
+  /* Light mode defaults */
+  --ytq-bg-primary: #FFFFFF;
+  --ytq-bg-secondary: #F2F2F2;
+  --ytq-bg-hover: #E5E5E5;
+  --ytq-text-primary: #0F0F0F;
+  --ytq-text-secondary: #606060;
+  --ytq-accent-red: #FF0000;
+  --ytq-accent-blue: #065FD4;
+  --ytq-border: #E5E5E5;
+  --ytq-overlay-dark: rgba(0, 0, 0, 0.8);
+  --ytq-overlay-light: rgba(255, 255, 255, 0.4);
+  --ytq-success-green: #2BA640;
+  --ytq-toast-bg: #323232;
+  --ytq-toast-text: #FFFFFF;
+  --ytq-bookmark-fill: #FF0000;
+  --ytq-bookmark-stroke: #FFFFFF;
+  --ytq-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --ytq-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.16);
+  --ytq-font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --ytq-card-width: 360px;
+  --ytq-shelf-padding-x: 24px;
+}
+
+/* Dark Mode detection (YouTube html[dark] or dark attribute) */
+html[dark],
+html[theme="dark"],
+[dark] {
+  --ytq-bg-primary: #0F0F0F;
+  --ytq-bg-secondary: #272727;
+  --ytq-bg-hover: #3F3F3F;
+  --ytq-text-primary: #F1F1F1;
+  --ytq-text-secondary: #AAAAAA;
+  --ytq-accent-red: #FF0000;
+  --ytq-accent-blue: #3EA6FF;
+  --ytq-border: #3F3F3F;
+  --ytq-overlay-dark: rgba(0, 0, 0, 0.8);
+  --ytq-overlay-light: rgba(0, 0, 0, 0.5);
+  --ytq-success-green: #2BA640;
+  --ytq-toast-bg: #F1F1F1;
+  --ytq-toast-text: #0F0F0F;
+  --ytq-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --ytq-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* Responsive Breakpoints */
+@media (min-width: 1800px) {
+  :root { --ytq-card-width: 360px; --ytq-shelf-padding-x: 24px; }
+}
+@media (max-width: 1799px) and (min-width: 1400px) {
+  :root { --ytq-card-width: 340px; --ytq-shelf-padding-x: 24px; }
+}
+@media (max-width: 1399px) and (min-width: 1200px) {
+  :root { --ytq-card-width: 320px; --ytq-shelf-padding-x: 24px; }
+}
+@media (max-width: 1199px) and (min-width: 1000px) {
+  :root { --ytq-card-width: 300px; --ytq-shelf-padding-x: 16px; }
+}
+@media (max-width: 999px) {
+  :root { --ytq-card-width: 280px; --ytq-shelf-padding-x: 16px; }
+}
+
+/* ==========================================================================
+   1. ONE-CLICK CAPTURE: BOOKMARK BUTTON ON THUMBNAILS
+   ========================================================================== */
+
+/* The bookmark button wrapper injected into video thumbnail containers */
+.ytq-bookmark-btn {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: rgba(15, 15, 15, 0.8) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 99999 !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 150ms ease, background-color 150ms ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  box-sizing: border-box !important;
+  user-select: none !important;
+}
+
+/* Make sure parent thumbnail container allows absolute positioning */
+.ytq-relative-parent {
+  position: relative !important;
+}
+
+/* Show button on ANY card or thumbnail hover */
+ytd-rich-item-renderer:hover .ytq-bookmark-btn,
+yt-lockup-view-model:hover .ytq-bookmark-btn,
+ytd-video-renderer:hover .ytq-bookmark-btn,
+ytd-grid-video-renderer:hover .ytq-bookmark-btn,
+ytd-compact-video-renderer:hover .ytq-bookmark-btn,
+ytd-rich-grid-media:hover .ytq-bookmark-btn,
+ytd-thumbnail:hover .ytq-bookmark-btn,
+yt-thumbnail-view-model:hover .ytq-bookmark-btn,
+a.yt-lockup-view-model-wiz__content-image:hover .ytq-bookmark-btn,
+[class*="content-image"]:hover .ytq-bookmark-btn,
+a#thumbnail:hover .ytq-bookmark-btn,
+*:hover > .ytq-bookmark-btn,
+.ytq-bookmark-btn:hover,
+.ytq-bookmark-btn.ytq-saved {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+
+.ytq-bookmark-btn:hover {
+  transform: scale(1.12) !important;
+  background: rgba(10, 10, 10, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.ytq-bookmark-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  pointer-events: none !important;
+  transition: transform 200ms ease !important;
+}
+
+.ytq-bookmark-btn path {
+  fill: transparent;
+  stroke: var(--ytq-bookmark-stroke);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  pointer-events: none !important;
+  transition: fill 200ms ease, stroke 200ms ease;
+}
+
+/* Saved state: solid red fill and visible always */
+.ytq-bookmark-btn.ytq-saved {
+  background: rgba(20, 20, 20, 0.9) !important;
+  border-color: var(--ytq-accent-red) !important;
+}
+
+.ytq-bookmark-btn.ytq-saved path {
+  fill: var(--ytq-accent-red) !important;
+  stroke: var(--ytq-accent-red) !important;
+}
+
+/* Save pop animation */
+@keyframes ytq-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.ytq-bookmark-btn.ytq-animating {
+  animation: ytq-pop 300ms ease !important;
+}
+
+/* ==========================================================================
+   2. COLLAPSIBLE TOP SHELF CONTAINER
+   ========================================================================== */
+
+#ytq-shelf-root {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--ytq-font-family);
+  background: var(--ytq-bg-primary);
+  border-bottom: 1px solid var(--ytq-border);
+  box-sizing: border-box;
+  transition: background-color 200ms ease, border-color 200ms ease;
+  z-index: 99;
+}
+
+/* Slim Collapsed Summary Bar (48px) */
+.ytq-shelf-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 var(--ytq-shelf-padding-x);
+  cursor: pointer;
+  background: var(--ytq-bg-secondary);
+  border-bottom: 1px solid var(--ytq-border);
+  user-select: none;
+  box-sizing: border-box;
+  transition: background-color 150ms ease;
+}
+
+.ytq-shelf-bar:hover {
+  background: var(--ytq-bg-hover);
+}
+
+.ytq-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ytq-bar-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ytq-accent-red);
+}
+
+.ytq-bar-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ytq-text-primary);
+  letter-spacing: -0.1px;
+}
+
+.ytq-bar-center {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ytq-text-secondary);
+  text-align: center;
+  flex: 1;
+  padding: 0 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ytq-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ytq-chevron-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ytq-text-secondary);
+  transition: transform 250ms ease;
+}
+
+.ytq-expanded .ytq-chevron-icon {
+  transform: rotate(180deg);
+}
+
+/* ==========================================================================
+   3. EXPANDED SHELF BODY & HEADER
+   ========================================================================== */
+
+.ytq-shelf-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 300ms ease-in-out, opacity 250ms ease;
+  opacity: 0;
+  background: var(--ytq-bg-primary);
+  box-sizing: border-box;
+}
+
+.ytq-expanded .ytq-shelf-content {
+  max-height: 600px;
+  opacity: 1;
+}
+
+.ytq-shelf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px var(--ytq-shelf-padding-x) 12px;
+  box-sizing: border-box;
+}
+
+.ytq-header-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ytq-header-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--ytq-text-primary);
+  margin: 0;
+}
+
+.ytq-count-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ytq-text-secondary);
+  background: var(--ytq-bg-secondary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 16px;
+}
+
+.ytq-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ytq-btn-clear-watched {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ytq-accent-blue);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 18px;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.ytq-btn-clear-watched:hover:not(:disabled) {
+  background: var(--ytq-bg-hover);
+}
+
+.ytq-btn-clear-watched:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.ytq-btn-collapse {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ytq-text-secondary);
+  transition: background-color 150ms ease;
+}
+
+.ytq-btn-collapse:hover {
+  background: var(--ytq-bg-hover);
+}
+
+/* ==========================================================================
+   4. HORIZONTAL SCROLLER & VIDEO CARDS
+   ========================================================================== */
+
+.ytq-scroller-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--ytq-shelf-padding-x) 16px;
+  box-sizing: border-box;
+}
+
+.ytq-cards-container {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 4px 0 8px;
+  width: 100%;
+}
+
+.ytq-cards-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Circular Left/Right Navigation Arrows */
+.ytq-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ytq-bg-primary);
+  border: 1px solid var(--ytq-border);
+  box-shadow: var(--ytq-shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  color: var(--ytq-text-primary);
+  transition: opacity 200ms ease, transform 150ms ease, background-color 150ms ease;
+}
+
+.ytq-scroll-btn:hover {
+  background: var(--ytq-bg-hover);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.ytq-scroll-btn.ytq-left {
+  left: 8px;
+}
+
+.ytq-scroll-btn.ytq-right {
+  right: 8px;
+}
+
+.ytq-scroll-btn.ytq-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Individual Video Card */
+.ytq-card {
+  flex: 0 0 var(--ytq-card-width);
+  width: var(--ytq-card-width);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 200ms ease, box-shadow 200ms ease, opacity 200ms ease, width 200ms ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.ytq-card:hover {
+  transform: scale(1.02);
+}
+
+.ytq-card.ytq-removing {
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
+/* Thumbnail wrapper (16:9 ratio) */
+.ytq-card-thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #181818;
+}
+
+.ytq-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* Watched visual treatment */
+.ytq-card.ytq-watched .ytq-card-thumb {
+  opacity: 0.65;
+  filter: grayscale(40%);
+}
+
+/* Duration badge */
+.ytq-card-duration {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: var(--ytq-overlay-dark);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
+/* Progress percentage / watched check badge */
+.ytq-card-pct-badge {
+  position: absolute;
+  bottom: 28px;
+  right: 8px;
+  background: var(--ytq-overlay-dark);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ytq-card-pct-badge.ytq-badge-watched {
+  background: rgba(43, 166, 64, 0.9);
+  color: #FFFFFF;
+  animation: ytq-pop 300ms ease;
+}
+
+/* Watch Progress Bar */
+.ytq-card-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  z-index: 3;
+}
+
+.ytq-card-progress-bar {
+  height: 100%;
+  background: var(--ytq-accent-red);
+  width: 0%;
+  transition: width 300ms ease;
+}
+
+/* Top-right card actions (Remove X button) */
+.ytq-card-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  z-index: 5;
+  transition: opacity 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.ytq-card:hover .ytq-card-remove-btn {
+  opacity: 1;
+}
+
+.ytq-card-remove-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.15);
+}
+
+/* Video Card Metadata */
+.ytq-card-info {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 4px;
+  gap: 4px;
+}
+
+.ytq-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--ytq-text-primary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.ytq-card-channel {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--ytq-text-secondary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty State Message */
+.ytq-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  width: 100%;
+  text-align: center;
+  color: var(--ytq-text-secondary);
+}
+
+.ytq-empty-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  color: var(--ytq-text-secondary);
+  opacity: 0.6;
+}
+
+.ytq-empty-text {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+}
+
+/* Context Menu */
+.ytq-context-menu {
+  position: fixed;
+  background: var(--ytq-bg-secondary);
+  border: 1px solid var(--ytq-border);
+  box-shadow: var(--ytq-shadow-md);
+  border-radius: 8px;
+  padding: 6px 0;
+  z-index: 100000;
+  min-width: 160px;
+  font-family: var(--ytq-font-family);
+  font-size: 13px;
+}
+
+.ytq-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--ytq-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 100ms ease;
+}
+
+.ytq-menu-item:hover {
+  background: var(--ytq-bg-hover);
+}
+
+/* ==========================================================================
+   5. UNDO TOAST NOTIFICATION
+   ========================================================================== */
+
+.ytq-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  max-width: 480px;
+  min-height: 48px;
+  background: var(--ytq-toast-bg);
+  color: var(--ytq-toast-text);
+  border-radius: 24px;
+  padding: 12px 20px;
+  box-shadow: var(--ytq-shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 999999;
+  font-family: var(--ytq-font-family);
+  font-size: 14px;
+  line-height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 250ms ease-out, opacity 250ms ease-out;
+  box-sizing: border-box;
+}
+
+.ytq-toast.ytq-toast-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ytq-toast-msg {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ytq-toast-undo {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ytq-accent-blue);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: background-color 150ms ease;
+}
+
+.ytq-toast-undo:hover {
+  background: rgba(62, 166, 255, 0.15);
+}

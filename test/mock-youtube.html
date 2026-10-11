@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" dark>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Mock Workbench - Watch Queue Test Bench</title>
+  <link rel="stylesheet" href="../content/content.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--ytq-bg-primary);
+      color: var(--ytq-text-primary);
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .mock-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      padding: 0 16px;
+      background: var(--ytq-bg-primary);
+      border-bottom: 1px solid var(--ytq-border);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .mock-logo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    .mock-logo svg {
+      color: #FF0000;
+      width: 28px;
+      height: 28px;
+    }
+
+    .mock-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mock-btn {
+      background: var(--ytq-bg-secondary);
+      color: var(--ytq-text-primary);
+      border: 1px solid var(--ytq-border);
+      padding: 6px 12px;
+      border-radius: 18px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .mock-btn:hover {
+      background: var(--ytq-bg-hover);
+    }
+
+    ytd-browse {
+      display: block;
+      max-width: 1780px;
+      margin: 0 auto;
+    }
+
+    #primary {
+      padding: 16px 24px;
+    }
+
+    .mock-section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 24px 0 16px;
+    }
+
+    /* Grid */
+    ytd-rich-grid-renderer #contents {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px 16px;
+    }
+
+    ytd-rich-item-renderer,
+    yt-lockup-view-model {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    ytd-thumbnail,
+    yt-thumbnail-view-model,
+    .yt-lockup-view-model-wiz__content-image {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      overflow: hidden;
+      background-color: #202020;
+      display: block;
+    }
+
+    ytd-thumbnail img,
+    yt-thumbnail-view-model img,
+    .yt-lockup-view-model-wiz__content-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .badge-shape .badge-shape-wiz__text {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .mock-details {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .mock-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+    }
+
+    .mock-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #video-title,
+    .yt-lockup-metadata-view-model-wiz__title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      color: var(--ytq-text-primary);
+      text-decoration: none;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    ytd-channel-name #text,
+    .channel-name-text {
+      font-size: 12px;
+      color: var(--ytq-text-secondary);
+    }
+
+    .mock-views {
+      font-size: 12px;
+      color: var(--ytq-text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mock Navigation Header -->
+  <header class="mock-topbar">
+    <div class="mock-logo">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+      <span>YouTube</span>
+    </div>
+
+    <div class="mock-controls">
+      <button class="mock-btn" id="btn-toggle-theme">Toggle Dark/Light Mode</button>
+      <button class="mock-btn" id="btn-add-sample">Add More Mock Videos</button>
+    </div>
+  </header>
+
+  <!-- YouTube Main Browse Tree -->
+  <ytd-browse page-subtype="home">
+    <div id="primary">
+      <ytd-rich-grid-renderer>
+        <h2 class="mock-section-title">Recommended Videos (Testing Classic & Modern ViewModels)</h2>
+        <div id="contents">
+          <!-- Video 1: Classic Polymer ytd-rich-item-renderer -->
+          <ytd-rich-item-renderer>
+            <ytd-thumbnail>
+              <a id="thumbnail" href="/watch?v=dQw4w9WgXcQ">
+                <img src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" alt="Video thumbnail">
+              </a>
+              <div class="badge-shape">
+                <span class="badge-shape-wiz__text">3:33</span>
+              </div>
+            </ytd-thumbnail>
+            <div class="mock-details">
+              <div class="mock-avatar"></div>
+              <div class="mock-meta">
+                <a id="video-title" href="/watch?v=dQw4w9WgXcQ">Rick Astley - Never Gonna Give You Up (Official Music Video)</a>
+                <ytd-channel-name><span id="text">Rick Astley</span></ytd-channel-name>
+                <span class="mock-views">1.5B views · 14 years ago</span>
+              </div>
+            </div>
+          </ytd-rich-item-renderer>
+
+          <!-- Video 2: Modern 2025/2026 yt-lockup-view-model -->
+          <ytd-rich-item-renderer>
+            <yt-lockup-view-model>
+              <div class="yt-lockup-view-model-wiz">
+                <a class="yt-lockup-view-model-wiz__content-image" href="/watch?v=jNQXAC9IVRw">
+                  <yt-thumbnail-view-model>
+                    <div class="yt-thumbnail-view-model__image">
+                      <img class="yt-core-image" src="https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg" alt="Video thumbnail">
+                    </div>
+                  </yt-thumbnail-view-model>
+                  <div class="badge-shape">
+                    <span class="badge-shape-wiz__text">0:19</span>
+                  </div>
+                </a>
+              </div>
+              <div class="mock-details">
+                <div class="mock-avatar"></div>
+                <div class="mock-meta">
+                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=jNQXAC9IVRw">Me at the zoo - First Video on YouTube (Modern ViewModel)</a>
+                  <div class="channel-name-text">jawed</div>
+                  <span class="mock-views">315M views · 19 years ago</span>
+                </div>
+              </div>
+            </yt-lockup-view-model>
+          </ytd-rich-item-renderer>
+
+          <!-- Video 3: Classic Polymer -->
+          <ytd-rich-item-renderer>
+            <ytd-thumbnail>
+              <a id="thumbnail" href="/watch?v=kJQP7kiw5Fk">
+                <img src="https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg" alt="Video thumbnail">
+              </a>
+              <div class="badge-shape">
+                <span class="badge-shape-wiz__text">4:12</span>
+              </div>
+            </ytd-thumbnail>
+            <div class="mock-details">
+              <div class="mock-avatar"></div>
+              <div class="mock-meta">
+                <a id="video-title" href="/watch?v=kJQP7kiw5Fk">Luis Fonsi - Despacito ft. Daddy Yankee</a>
+                <ytd-channel-name><span id="text">Luis Fonsi</span></ytd-channel-name>
+                <span class="mock-views">8.2B views · 7 years ago</span>
+              </div>
+            </div>
+          </ytd-rich-item-renderer>
+
+          <!-- Video 4: Modern yt-lockup-view-model -->
+          <ytd-rich-item-renderer>
+            <yt-lockup-view-model>
+              <div class="yt-lockup-view-model-wiz">
+                <a class="yt-lockup-view-model-wiz__content-image" href="/watch?v=9bZkp7q19f0">
+                  <yt-thumbnail-view-model>
+                    <div class="yt-thumbnail-view-model__image">
+                      <img class="yt-core-image" src="https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg" alt="Video thumbnail">
+                    </div>
+                  </yt-thumbnail-view-model>
+                  <div class="badge-shape">
+                    <span class="badge-shape-wiz__text">4:13</span>
+                  </div>
+                </a>
+              </div>
+              <div class="mock-details">
+                <div class="mock-avatar"></div>
+                <div class="mock-meta">
+                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=9bZkp7q19f0">PSY - GANGNAM STYLE (강남스타일) M/V</a>
+                  <div class="channel-name-text">officialpsy</div>
+                  <span class="mock-views">5.1B views · 12 years ago</span>
+                </div>
+              </div>
+            </yt-lockup-view-model>
+          </ytd-rich-item-renderer>
+        </div>
+      </ytd-rich-grid-renderer>
+    </div>
+  </ytd-browse>
+
+  <script>
+    const toggleThemeBtn = document.getElementById('btn-toggle-theme');
+    toggleThemeBtn.addEventListener('click', () => {
+      if (document.documentElement.hasAttribute('dark')) {
+        document.documentElement.removeAttribute('dark');
+      } else {
+        document.documentElement.setAttribute('dark', '');
+      }
+    });
+
+    const addSampleBtn = document.getElementById('btn-add-sample');
+    addSampleBtn.addEventListener('click', () => {
+      const container = document.getElementById('contents');
+      const sampleItem = document.createElement('ytd-rich-item-renderer');
+      const testId = 'fJ9rUzIMcZQ';
+      sampleItem.innerHTML = `
+        <ytd-thumbnail>
+          <a id="thumbnail" href="/watch?v=${testId}">
+            <img src="https://i.ytimg.com/vi/${testId}/hqdefault.jpg" alt="Video thumbnail">
+          </a>
+          <div class="badge-shape">
+            <span class="badge-shape-wiz__text">3:45</span>
+          </div>
+        </ytd-thumbnail>
+        <div class="mock-details">
+          <div class="mock-avatar"></div>
+          <div class="mock-meta">
+            <a id="video-title" href="/watch?v=${testId}">Queen - Bohemian Rhapsody (Official Video Remastered)</a>
+            <ytd-channel-name><span id="text">Queen Official</span></ytd-channel-name>
+            <span class="mock-views">1.6B views · 15 years ago</span>
+          </div>
+        </div>
+      `;
+      container.appendChild(sampleItem);
+    });
+  </script>
+
+  <script src="../data/constants.js"></script>
+  <script>
+    if (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.id) {
+      console.log('Initializing Standalone Mock Chrome Environment...');
+      const localStore = {
+        watchQueue: [
+          {
+            id: 'dQw4w9WgXcQ',
+            title: 'Rick Astley - Never Gonna Give You Up',
+            channelName: 'Rick Astley',
+            thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+            durationSeconds: 213,
+            durationFormatted: '3:33',
+            savedAt: new Date(Date.now() - 3600000).toISOString(),
+            progress: 45,
+            lastWatchedAt: new Date().toISOString(),
+            isWatched: false,
+          },
+          {
+            id: 'jNQXAC9IVRw',
+            title: 'Me at the zoo - First Video on YouTube',
+            channelName: 'jawed',
+            thumbnailUrl: 'https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg',
+            durationSeconds: 19,
+            durationFormatted: '0:19',
+            savedAt: new Date().toISOString(),
+            progress: 95,
+            lastWatchedAt: new Date().toISOString(),
+            isWatched: true,
+          }
+        ],
+        ytqSettings: {
+          shelfExpanded: true,
+          watchedThreshold: 90,
+          sortOrder: 'newest'
+        }
+      };
+
+      const listeners = [];
+      window.chrome = {
+        runtime: {
+          id: 'mock-extension-id',
+          lastError: null,
+          onMessage: {
+            addListener: (fn) => listeners.push(fn)
+          },
+          sendMessage: (msg, callback) => {
+            setTimeout(() => {
+              const res = handleMockMessage(msg);
+              if (callback) callback(res);
+            }, 10);
+          }
+        },
+        action: {
+          setBadgeText: () => Promise.resolve(),
+          setBadgeBackgroundColor: () => Promise.resolve(),
+        },
+        storage: {
+          local: {
+            get: (key) => Promise.resolve(typeof key === 'string' ? { [key]: localStore[key] } : localStore),
+            set: (obj) => {
+              Object.assign(localStore, obj);
+              return Promise.resolve();
+            }
+          }
+        }
+      };
+
+      function handleMockMessage(msg) {
+        if (!msg) return { success: false };
+        if (msg.type === 'YTQ_GET_QUEUE') {
+          return { success: true, queue: localStore.watchQueue };
+        }
+        if (msg.type === 'YTQ_GET_SETTINGS') {
+          return { success: true, settings: localStore.ytqSettings };
+        }
+        if (msg.type === 'YTQ_UPDATE_SETTINGS') {
+          Object.assign(localStore.ytqSettings, msg.settings);
+          return { success: true, settings: localStore.ytqSettings };
+        }
+        if (msg.type === 'YTQ_ADD_VIDEO') {
+          const idx = localStore.watchQueue.findIndex(v => v.id === msg.video.id);
+          if (idx >= 0) {
+            localStore.watchQueue[idx] = { ...localStore.watchQueue[idx], ...msg.video };
+          } else {
+            localStore.watchQueue.unshift(msg.video);
+          }
+          return { success: true, queue: localStore.watchQueue };
+        }
+        if (msg.type === 'YTQ_REMOVE_VIDEO') {
+          const removed = localStore.watchQueue.find(v => v.id === msg.videoId);
+          localStore.watchQueue = localStore.watchQueue.filter(v => v.id !== msg.videoId);
+          return { success: true, queue: localStore.watchQueue, removed };
+        }
+        if (msg.type === 'YTQ_CLEAR_WATCHED') {
+          const cleared = localStore.watchQueue.filter(v => v.isWatched);
+          localStore.watchQueue = localStore.watchQueue.filter(v => !v.isWatched);
+          return { success: true, queue: localStore.watchQueue, cleared };
+        }
+        if (msg.type === 'YTQ_RESTORE_VIDEOS') {
+          const toAdd = msg.videos || [];
+          toAdd.forEach(item => {
+            if (!localStore.watchQueue.some(v => v.id === item.id)) {
+              localStore.watchQueue.unshift(item);
+            }
+          });
+          return { success: true, queue: localStore.watchQueue };
+        }
+        if (msg.type === 'YTQ_UPDATE_PROGRESS') {
+          const target = localStore.watchQueue.find(v => v.id === msg.videoId);
+          if (target) {
+            target.progress = msg.progress;
+            target.isWatched = msg.progress >= (localStore.ytqSettings.watchedThreshold || 90);
+          }
+          return { success: true, queue: localStore.watchQueue };
+        }
+        return { success: true };
+      }
+    }
+  </script>
+  <script src="../content/content.js"></script>
+</body>
+</html>

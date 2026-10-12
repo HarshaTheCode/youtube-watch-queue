@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube Mock Workbench - Watch Queue Test Bench</title>
+  <title>YouTube Watch Queue - Position Test Bench</title>
   <link rel="stylesheet" href="../content/content.css">
   <style>
+    :root {
+      --ytq-accent-red: #CC4B4B; /* Subdued dull red */
+      --active-red: #CC4B4B;
+    }
+
     body {
       margin: 0;
       padding: 0;
@@ -38,7 +43,7 @@
     }
 
     .mock-logo svg {
-      color: #FF0000;
+      color: var(--active-red);
       width: 28px;
       height: 28px;
     }
@@ -57,12 +62,397 @@
       border-radius: 18px;
       font-size: 13px;
       cursor: pointer;
+      transition: background 150ms ease;
     }
 
     .mock-btn:hover {
       background: var(--ytq-bg-hover);
     }
 
+    /* ==========================================================================
+       SHOWCASE VERIFICATION TESTBENCH SECTION
+       ========================================================================== */
+    .test-showcase-container {
+      max-width: 1400px;
+      margin: 24px auto 32px;
+      padding: 0 24px;
+    }
+
+    .showcase-banner {
+      background: linear-gradient(135deg, rgba(30, 30, 30, 0.95), rgba(20, 20, 20, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .showcase-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: var(--active-red);
+      color: #FFF;
+      padding: 4px 10px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      transition: background-color 200ms ease;
+    }
+
+    .showcase-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+
+    .showcase-desc {
+      font-size: 14px;
+      color: var(--ytq-text-secondary);
+      margin: 0 0 20px;
+      line-height: 1.5;
+    }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
+    .panel-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 24px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ytq-text-secondary);
+    }
+
+    .preset-btn,
+    .color-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--ytq-text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .preset-btn:hover,
+    .color-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .preset-btn.active,
+    .color-btn.active {
+      background: var(--active-red);
+      color: #FFF;
+      border-color: var(--active-red);
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .color-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-wrap input[type="range"] {
+      cursor: pointer;
+      width: 140px;
+    }
+
+    .slider-val-tag {
+      font-size: 13px;
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--active-red);
+      background: rgba(204, 75, 75, 0.12);
+      padding: 2px 8px;
+      border-radius: 6px;
+      transition: all 200ms ease;
+    }
+
+    .toggle-action-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--ytq-text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .toggle-action-btn.active {
+      background: var(--active-red);
+      color: #FFF;
+      font-weight: 600;
+      border-color: var(--active-red);
+    }
+
+    /* Comparison Grid */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 24px;
+    }
+
+    .compare-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .compare-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .compare-box-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .compare-box-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--ytq-text-secondary);
+    }
+
+    /* Screenshot viewer */
+    .screenshot-frame {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #111;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .screenshot-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Interactive Live Mock Thumbnail */
+    .mock-preview-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #111;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .mock-preview-viewport img.bg-poster {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Captions subtitle banner */
+    .mock-live-captions {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 16px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      max-width: 65%;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Duration badge */
+    .mock-live-duration {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* Native Mute Button */
+    .sim-button {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      transition: all 150ms ease;
+      z-index: 20;
+    }
+
+    .sim-button:hover {
+      background: rgba(0, 0, 0, 0.95);
+      transform: scale(1.08);
+    }
+
+    .sim-mute {
+      top: 8px;
+      right: 8px;
+    }
+
+    .sim-mute svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Native CC Button */
+    .sim-cc {
+      top: 44px;
+      right: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    /* vidIQ 3rd Party Extension Button */
+    .sim-vidiq {
+      top: 80px;
+      right: 8px;
+    }
+
+    .sim-vidiq svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .sim-vidiq .vidiq-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 8px;
+      font-weight: 800;
+      background: #065FD4;
+      color: #FFF;
+      padding: 1px 2px;
+      border-radius: 2px;
+      line-height: 1;
+    }
+
+    /* Our Watch Queue Bookmark Button with Dull Red Accent */
+    .sim-ytq-bookmark {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1.5px solid var(--active-red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--active-red);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      transition: all 180ms ease;
+      z-index: 25;
+    }
+
+    .sim-ytq-bookmark svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      pointer-events: none;
+    }
+
+    .sim-ytq-bookmark path {
+      fill: transparent;
+      stroke: #FFFFFF;
+      stroke-width: 2.2;
+      stroke-linejoin: round;
+      transition: fill 180ms ease, stroke 180ms ease;
+    }
+
+    .sim-ytq-bookmark.is-saved {
+      background: rgba(22, 22, 22, 0.95);
+      border-color: var(--active-red);
+      box-shadow: 0 0 10px rgba(204, 75, 75, 0.35);
+    }
+
+    .sim-ytq-bookmark.is-saved path {
+      fill: var(--active-red);
+      stroke: var(--active-red);
+    }
+
+    .sim-ytq-bookmark:hover {
+      transform: scale(1.12);
+      background: rgba(10, 10, 10, 0.98);
+    }
+
+    .compare-note {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--ytq-text-secondary);
+      line-height: 1.5;
+    }
+
+    .compare-note strong {
+      color: var(--active-red);
+    }
+
+    /* Standard Grid Feed Cards */
     ytd-browse {
       display: block;
       max-width: 1780px;
@@ -79,7 +469,6 @@
       margin: 24px 0 16px;
     }
 
-    /* Grid */
     ytd-rich-grid-renderer #contents {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -179,23 +568,148 @@
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
       </svg>
-      <span>YouTube</span>
+      <span>YouTube Watch Queue Bench</span>
     </div>
 
     <div class="mock-controls">
       <button class="mock-btn" id="btn-toggle-theme">Toggle Dark/Light Mode</button>
       <button class="mock-btn" id="btn-simulate-account">Simulate Account Switch</button>
-      <button class="mock-btn" id="btn-add-sample">Add More Mock Videos</button>
+      <button class="mock-btn" id="btn-add-sample">Add Sample Cards</button>
     </div>
   </header>
 
-  <!-- YouTube Main Browse Tree -->
+  <!-- Showcase Testbench Section -->
+  <div class="test-showcase-container">
+    <div class="showcase-banner">
+      <div class="showcase-badge" id="banner-badge">Interactive Test Bench</div>
+      <h1 class="showcase-title">Bookmark Button Placement & Dull Red Color Verification</h1>
+      <p class="showcase-desc">
+        Replicating your exact screen layout: <strong>Mute</strong> &rarr; <strong>CC</strong> &rarr; <strong>vidIQ</strong> on the right, <strong>Subtitles</strong> (bottom-left), and <strong>25:41</strong> duration badge (bottom-right). Now updated with a <strong>soft, subdued dull red</strong> (no bright neon peak red)!
+      </p>
+
+      <!-- Control Panel -->
+      <div class="control-panel">
+        <div class="panel-row">
+          <div class="control-group">
+            <label>Dull Red Shade:</label>
+            <button class="color-btn active" data-color="#CC4B4B">
+              <span class="color-dot" style="background: #CC4B4B;"></span>Dull Crimson (#CC4B4B)
+            </button>
+            <button class="color-btn" data-color="#D32F2F">
+              <span class="color-dot" style="background: #D32F2F;"></span>Muted Brick (#D32F2F)
+            </button>
+            <button class="color-btn" data-color="#B73232">
+              <span class="color-dot" style="background: #B73232;"></span>Deep Wine (#B73232)
+            </button>
+          </div>
+
+          <div class="control-group">
+            <button class="toggle-action-btn active" id="btn-toggle-saved">State: Saved</button>
+            <button class="toggle-action-btn active" id="btn-toggle-vidiq">vidIQ: Visible</button>
+          </div>
+        </div>
+
+        <div class="panel-row">
+          <div class="control-group">
+            <label>Position Presets:</label>
+            <button class="preset-btn active" id="btn-pos-below-all" data-top="116" data-right="8" data-left="auto">
+              1. Below vidIQ (Right: top: 116px)
+            </button>
+            <button class="preset-btn" id="btn-pos-below-cc" data-top="80" data-right="8" data-left="auto">
+              2. Below CC (Right: top: 80px)
+            </button>
+            <button class="preset-btn" id="btn-pos-top-left" data-top="8" data-right="auto" data-left="8">
+              3. Top-Left Corner (top: 8px, left: 8px)
+            </button>
+          </div>
+
+          <div class="control-group">
+            <label>Fine-Tune 'top':</label>
+            <div class="slider-wrap">
+              <input type="range" id="top-slider" min="40" max="130" value="116">
+              <span class="slider-val-tag" id="top-slider-val">116px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Grid -->
+      <div class="compare-grid">
+        <!-- 1. Actual Screenshot -->
+        <div class="compare-box">
+          <div class="compare-box-header">
+            <div class="compare-box-title">1. Your Current Screen (Screenshot Reference)</div>
+            <span class="compare-box-tag">Actual User UI</span>
+          </div>
+          <div class="screenshot-frame">
+            <img src="./user-screenshot.png" alt="User Screenshot Reference">
+          </div>
+          <div class="compare-note">
+            Vertical stack order: <strong>Mute</strong> (top) &bull; <strong>CC</strong> (2nd) &bull; <strong>vidIQ</strong> (3rd) &bull; <strong>Subtitles</strong> (bottom-left) &bull; <strong>25:41</strong> (bottom-right).
+          </div>
+        </div>
+
+        <!-- 2. Interactive Live Mock Card -->
+        <div class="compare-box">
+          <div class="compare-box-header">
+            <div class="compare-box-title">2. Live Interactive Placement Mock (Dull Red Ribbon)</div>
+            <span class="compare-box-tag" id="current-pos-tag">top: 116px, right: 8px</span>
+          </div>
+          <div class="mock-preview-viewport" id="viewport">
+            <img class="bg-poster" src="./user-screenshot.png" alt="Preview Video">
+
+            <!-- Subtitles overlay banner -->
+            <div class="mock-live-captions">
+              If I were starting out on social media again in 2026, this is exactly what I
+            </div>
+
+            <!-- Duration badge -->
+            <div class="mock-live-duration">25:41</div>
+
+            <!-- 1. Mute Button -->
+            <div class="sim-button sim-mute" title="Mute (m)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                <line x1="23" y1="9" x2="17" y2="15"/>
+                <line x1="17" y1="9" x2="23" y2="15"/>
+              </svg>
+            </div>
+
+            <!-- 2. CC Button -->
+            <div class="sim-button sim-cc" title="Subtitles/closed captions (c)">CC</div>
+
+            <!-- 3. vidIQ Button -->
+            <div class="sim-button sim-vidiq" id="sim-vidiq-btn" title="vidIQ Extension Icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span class="vidiq-badge">IQ</span>
+            </div>
+
+            <!-- 4. Watch Queue Save Button with Dull Red Fill -->
+            <div class="sim-ytq-bookmark is-saved" id="sim-bookmark" role="button" title="Watch Queue (Click to toggle)" style="top: 116px; right: 8px; left: auto;">
+              <svg viewBox="0 0 24 24">
+                <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="compare-note" id="status-explanation">
+            Status: Sits cleanly <strong>below vidIQ</strong> at <code>top: 116px, right: 8px</code> in <strong>dull crimson (#CC4B4B)</strong>. Leaves <strong>35px+ clearance</strong> above the <code>25:41</code> duration badge with 0% overlap.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube Main Browse Tree with Standard Cards -->
   <ytd-browse page-subtype="home">
     <div id="primary">
       <ytd-rich-grid-renderer>
-        <h2 class="mock-section-title">Recommended Videos (Testing Classic & Modern ViewModels)</h2>
+        <h2 class="mock-section-title">Standard Feed Cards (Watch Queue Shelf Appears Above)</h2>
         <div id="contents">
-          <!-- Video 1: Classic Polymer ytd-rich-item-renderer with aria-label -->
+          <!-- Video 1: Classic Polymer ytd-rich-item-renderer -->
           <ytd-rich-item-renderer>
             <ytd-thumbnail>
               <a id="thumbnail" href="/watch?v=dQw4w9WgXcQ" aria-label="3 minutes, 33 seconds">
@@ -215,7 +729,7 @@
             </div>
           </ytd-rich-item-renderer>
 
-          <!-- Video 2: Modern 2025/2026 yt-lockup-view-model with aria-label duration -->
+          <!-- Video 2: Modern 2025/2026 yt-lockup-view-model -->
           <ytd-rich-item-renderer>
             <yt-lockup-view-model>
               <div class="yt-lockup-view-model-wiz">
@@ -295,7 +809,114 @@
     </div>
   </ytd-browse>
 
+  <!-- Interactive Workbench Script -->
   <script>
+    const simBookmark = document.getElementById('sim-bookmark');
+    const topSlider = document.getElementById('top-slider');
+    const topSliderVal = document.getElementById('top-slider-val');
+    const currentPosTag = document.getElementById('current-pos-tag');
+    const statusExplanation = document.getElementById('status-explanation');
+    const simVidiqBtn = document.getElementById('sim-vidiq-btn');
+
+    // Preset buttons
+    const btnBelowAll = document.getElementById('btn-pos-below-all');
+    const btnBelowCc = document.getElementById('btn-pos-below-cc');
+    const btnTopLeft = document.getElementById('btn-pos-top-left');
+    const presetBtns = [btnBelowAll, btnBelowCc, btnTopLeft];
+
+    // Color shade buttons
+    const colorBtns = document.querySelectorAll('.color-btn');
+    let currentRed = '#CC4B4B';
+
+    colorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        colorBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentRed = btn.dataset.color;
+        document.documentElement.style.setProperty('--active-red', currentRed);
+        document.documentElement.style.setProperty('--ytq-accent-red', currentRed);
+      });
+    });
+
+    function setPosition(top, right, left, activeBtn, note) {
+      presetBtns.forEach(b => b.classList.remove('active'));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      simBookmark.style.top = top + 'px';
+      simBookmark.style.right = right === 'auto' ? 'auto' : right + 'px';
+      simBookmark.style.left = left === 'auto' ? 'auto' : left + 'px';
+
+      topSlider.value = top;
+      topSliderVal.textContent = top + 'px';
+
+      const posStr = left !== 'auto' ? `top: ${top}px, left: ${left}px` : `top: ${top}px, right: ${right}px`;
+      currentPosTag.textContent = posStr;
+
+      if (note) {
+        statusExplanation.innerHTML = note;
+      }
+    }
+
+    btnBelowAll.addEventListener('click', () => {
+      setPosition(116, 8, 'auto', btnBelowAll, 
+        'Position 1: Sits cleanly <strong>below vidIQ</strong> at <code>top: 116px, right: 8px</code>. Leaves <strong>35px+ clearance</strong> above duration badge.'
+      );
+    });
+
+    btnBelowCc.addEventListener('click', () => {
+      setPosition(80, 8, 'auto', btnBelowCc, 
+        'Position 2: Sits directly <strong>below CC</strong> at <code>top: 80px, right: 8px</code> (ideal when vidIQ is hidden or not installed).'
+      );
+    });
+
+    btnTopLeft.addEventListener('click', () => {
+      setPosition(8, 'auto', 8, btnTopLeft, 
+        'Position 3: Placed in the <strong>Top-Left corner</strong> (<code>top: 8px, left: 8px</code>). Completely separated from all right-hand controls & extensions.'
+      );
+    });
+
+    topSlider.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      topSliderVal.textContent = val + 'px';
+      simBookmark.style.top = val + 'px';
+      currentPosTag.textContent = `top: ${val}px, right: ${simBookmark.style.right}`;
+      presetBtns.forEach(b => b.classList.remove('active'));
+      statusExplanation.innerHTML = `Custom fine-tuned: <code>top: ${val}px</code>, <code>right: ${simBookmark.style.right}</code>.`;
+    });
+
+    // Toggle vidIQ
+    const btnToggleVidiq = document.getElementById('btn-toggle-vidiq');
+    btnToggleVidiq.addEventListener('click', () => {
+      const isVisible = simVidiqBtn.style.display !== 'none';
+      if (isVisible) {
+        simVidiqBtn.style.display = 'none';
+        btnToggleVidiq.classList.remove('active');
+        btnToggleVidiq.textContent = 'vidIQ: Hidden';
+        if (btnBelowAll.classList.contains('active')) {
+          btnBelowCc.click();
+        }
+      } else {
+        simVidiqBtn.style.display = 'flex';
+        btnToggleVidiq.classList.add('active');
+        btnToggleVidiq.textContent = 'vidIQ: Visible';
+        btnBelowAll.click();
+      }
+    });
+
+    // Toggle saved state
+    const btnToggleSaved = document.getElementById('btn-toggle-saved');
+    btnToggleSaved.addEventListener('click', () => {
+      simBookmark.classList.toggle('is-saved');
+      const isSaved = simBookmark.classList.contains('is-saved');
+      btnToggleSaved.textContent = `State: ${isSaved ? 'Saved' : 'Unsaved'}`;
+      btnToggleSaved.classList.toggle('active', isSaved);
+    });
+
+    simBookmark.addEventListener('click', () => {
+      btnToggleSaved.click();
+    });
+
+    // Toggle theme
     const toggleThemeBtn = document.getElementById('btn-toggle-theme');
     toggleThemeBtn.addEventListener('click', () => {
       if (document.documentElement.hasAttribute('dark')) {
@@ -308,7 +929,6 @@
     // Simulate account switch / SPA navigation
     const simulateAccountBtn = document.getElementById('btn-simulate-account');
     simulateAccountBtn.addEventListener('click', () => {
-      console.log('Simulating account switch...');
       const event = new CustomEvent('yt-navigate-finish');
       window.dispatchEvent(event);
     });
@@ -340,10 +960,10 @@
     });
   </script>
 
+  <!-- Extension Mock Storage & Scripts -->
   <script src="../data/constants.js"></script>
   <script>
     if (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.id) {
-      console.log('Initializing Standalone Mock Chrome Environment...');
       const localStore = {
         watchQueue: [
           {

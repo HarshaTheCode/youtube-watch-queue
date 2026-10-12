@@ -479,7 +479,13 @@
 
     card.addEventListener('mouseenter', () => {
       card.classList.add('ytq-card-hovered');
-      if (btn) btn.classList.add('ytq-visible');
+      if (btn) {
+        btn.classList.add('ytq-visible');
+        const hasThirdParty = Boolean(
+          card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
+        );
+        btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
+      }
     });
 
     card.addEventListener('mouseleave', () => {
@@ -548,6 +554,11 @@
         btn.dataset.durationSeconds = String(durationInfo.seconds);
       }
 
+      const hasThirdParty = Boolean(
+        card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
+      );
+      btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
+
       thumbContainer.appendChild(btn);
     } else {
       // Button already exists: update saved state
@@ -560,6 +571,11 @@
         btn.title = 'Add to Watch Queue';
         btn.setAttribute('aria-label', 'Add to Watch Queue');
       }
+
+      const hasThirdParty = Boolean(
+        card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
+      );
+      btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
 
       // Update cached duration if it was missing previously
       if (!btn.dataset.durationFormatted || btn.dataset.durationFormatted === '0:00') {

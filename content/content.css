@@ -75,6 +75,7 @@ html[theme="dark"],
   top: var(--ytq-btn-top, 8px) !important;
   left: var(--ytq-btn-left, 8px) !important;
   right: auto !important;
+  bottom: auto !important;
   width: 32px !important;
   height: 32px !important;
   border-radius: 50% !important;
@@ -86,7 +87,7 @@ html[theme="dark"],
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  z-index: 9999999 !important; /* Topmost stacking context */
+  z-index: 2147483647 !important; /* Topmost 32-bit stacking context */
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease, transform 150ms ease, background-color 150ms ease, border-color 150ms ease !important;
@@ -102,7 +103,7 @@ html[theme="dark"],
 
 /* 
    Show button whenever:
-   - Card is hovered (via CSS or JS persistent .ytq-card-hovered)
+   - Card or thumbnail is hovered (via CSS or JS persistent .ytq-card-hovered)
    - Button itself is hovered or marked .ytq-visible
    - Thumbnail preview player is active
    - Video is saved (.ytq-saved)

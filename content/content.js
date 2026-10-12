@@ -272,6 +272,8 @@
    * Locate thumbnail container element inside a video card
    */
   function findThumbnailContainer(card) {
+    if (!card) return null;
+
     const selectors = [
       'yt-thumbnail-view-model',
       'a.yt-lockup-view-model-wiz__content-image',
@@ -283,6 +285,7 @@
     ];
 
     for (const sel of selectors) {
+      if (card.matches && card.matches(sel)) return card;
       const found = card.querySelector(sel);
       if (found) return found;
     }
@@ -476,7 +479,7 @@
   function applyContainerInsets(thumbContainer, btn) {
     if (!thumbContainer || !btn) return;
 
-    // Ensure the container is positioned relative
+    // Ensure the container is positioned relative and has higher stacking context
     thumbContainer.classList.add('ytq-relative-parent');
     if (window.getComputedStyle(thumbContainer).position === 'static') {
       thumbContainer.style.position = 'relative';
@@ -489,11 +492,14 @@
     const borderLeft = parseFloat(style.borderLeftWidth) || 0;
 
     // Inset from inside border & padding by 8px
-    const topInset = Math.round(padTop + borderTop + 8);
-    const leftInset = Math.round(padLeft + borderLeft + 8);
+    const topInset = Math.max(8, Math.round(padTop + borderTop + 8));
+    const leftInset = Math.max(8, Math.round(padLeft + borderLeft + 8));
 
     btn.style.setProperty('--ytq-btn-top', `${topInset}px`);
     btn.style.setProperty('--ytq-btn-left', `${leftInset}px`);
+    btn.style.top = `${topInset}px`;
+    btn.style.left = `${leftInset}px`;
+    btn.style.right = 'auto';
   }
 
   /**
@@ -501,20 +507,33 @@
    * even when YouTube inline playback / mouseover-overlay activates.
    */
   function bindCardHoverEvents(card, btn, thumbContainer) {
-    if (!card || card.dataset.ytqHoverBound === 'true') return;
-    card.dataset.ytqHoverBound = 'true';
+    if (!card) return;
 
-    card.addEventListener('mouseenter', () => {
-      card.classList.add('ytq-card-hovered');
-      if (btn) {
-        btn.classList.add('ytq-visible');
-        if (thumbContainer) applyContainerInsets(thumbContainer, btn);
-      }
-    });
+    // Bind listeners to card and thumbnail container for bulletproof hover tracking
+    const targets = [card, thumbContainer].filter(Boolean);
+    targets.forEach((target) => {
+      if (target.dataset.ytqHoverBound === 'true') return;
+      target.dataset.ytqHoverBound = 'true';
 
-    card.addEventListener('mouseleave', () => {
-      card.classList.remove('ytq-card-hovered');
-      if (btn) btn.classList.remove('ytq-visible');
+      target.addEventListener('mouseenter', () => {
+        card.classList.add('ytq-card-hovered');
+        if (btn) {
+          btn.classList.add('ytq-visible');
+          if (thumbContainer) applyContainerInsets(thumbContainer, btn);
+        }
+      });
+
+      target.addEventListener('mouseleave', () => {
+        setTimeout(() => {
+          const isCardHovered = card.matches(':hover');
+          const isBtnHovered = btn && btn.matches(':hover');
+          const isThumbHovered = thumbContainer && thumbContainer.matches(':hover');
+          if (!isCardHovered && !isBtnHovered && !isThumbHovered) {
+            card.classList.remove('ytq-card-hovered');
+            if (btn) btn.classList.remove('ytq-visible');
+          }
+        }, 50);
+      });
     });
   }
 
@@ -1310,6 +1329,30 @@
         }
       }
     });
+
+    window.__YTQ_DEBUG = {
+      inspect: () => {
+        const cards = document.querySelectorAll(CONSTANTS.SELECTORS.VIDEO_CARD);
+        const btns = document.querySelectorAll('.ytq-bookmark-btn');
+        return {
+          page: getPageType(),
+          cardsCount: cards.length,
+          buttonsCount: btns.length,
+          queueCount: currentQueue.length,
+          firstCardTag: cards[0]?.tagName,
+          firstButton: btns[0],
+          firstButtonParentTag: btns[0]?.parentElement?.tagName,
+          firstButtonParentClass: btns[0]?.parentElement?.className,
+          firstButtonComputed: btns[0] ? {
+            display: getComputedStyle(btns[0]).display,
+            opacity: getComputedStyle(btns[0]).opacity,
+            top: getComputedStyle(btns[0]).top,
+            left: getComputedStyle(btns[0]).left,
+            zIndex: getComputedStyle(btns[0]).zIndex,
+          } : null,
+        };
+      },
+    };
 
     window.addEventListener('beforeunload', () => {
       if (isProgressPolling && currentWatchVideoId) {

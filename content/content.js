@@ -623,9 +623,13 @@
     });
   }
 
-  // =========================================================================
-  // FEATURE 3: COLLAPSIBLE TOP SHELF ON HOME PAGE (STRICTLY ACTIVE VIEW CONTAINER)
-  // =========================================================================
+  // Signature of last rendered queue state to prevent redundant DOM wipes
+  let lastRenderedSignature = '';
+
+  function getQueueSignature() {
+    return currentQueue.map((v) => `${v.id}:${v.progress}:${v.isWatched}:${v.durationFormatted}`).join('|') +
+           `_${Boolean(currentSettings.shelfExpanded)}`;
+  }
 
   /**
    * Find the active, non-hidden YouTube browse and grid container
@@ -652,48 +656,56 @@
     if (getPageType() !== 'home') {
       const existing = document.getElementById('ytq-shelf-root');
       if (existing) existing.remove();
+      lastRenderedSignature = '';
       return null;
+    }
+
+    let shelf = document.getElementById('ytq-shelf-root');
+
+    // If shelf already exists and is connected to the DOM in an active browse view, KEEP IT
+    if (shelf && shelf.isConnected) {
+      const isInsideHidden = shelf.closest('ytd-browse[hidden]') !== null;
+      if (!isInsideHidden) {
+        return shelf; // Perfectly stable, keep existing element
+      }
+      // If orphaned inside hidden browse after account switch, clean it up
+      shelf.remove();
+      shelf = null;
+      lastRenderedSignature = '';
     }
 
     const mountParent = getActiveHomeGrid();
     if (!mountParent) return null;
 
-    let shelf = document.getElementById('ytq-shelf-root');
+    shelf = document.createElement('div');
+    shelf.id = 'ytq-shelf-root';
+    shelf.className = currentSettings.shelfExpanded ? 'ytq-expanded' : 'ytq-collapsed';
 
-    // If shelf already exists, check if it was orphaned inside a hidden browse element
-    if (shelf) {
-      const currentParent = shelf.parentElement;
-      const isInsideHidden = shelf.closest('ytd-browse[hidden]') !== null;
-
-      // If attached inside hidden browse or wrong parent, re-mount to active view
-      if (isInsideHidden || (currentParent && currentParent !== mountParent)) {
-        shelf.remove();
-        shelf = null;
-      }
-    }
-
-    if (!shelf) {
-      shelf = document.createElement('div');
-      shelf.id = 'ytq-shelf-root';
-      shelf.className = currentSettings.shelfExpanded ? 'ytq-expanded' : 'ytq-collapsed';
-
-      // Insert as direct child of ytd-rich-grid-renderer BEFORE #contents (NEVER inside grid cells)
-      const contentsEl = mountParent.querySelector('#contents');
-      if (contentsEl && contentsEl.parentElement === mountParent) {
-        mountParent.insertBefore(shelf, contentsEl);
-      } else if (mountParent.firstChild) {
-        mountParent.insertBefore(shelf, mountParent.firstChild);
-      } else {
-        mountParent.appendChild(shelf);
-      }
+    // Insert as direct child of ytd-rich-grid-renderer BEFORE #contents (NEVER inside grid cells)
+    const contentsEl = mountParent.querySelector('#contents');
+    if (contentsEl && contentsEl.parentElement === mountParent) {
+      mountParent.insertBefore(shelf, contentsEl);
+    } else if (mountParent.firstChild) {
+      mountParent.insertBefore(shelf, mountParent.firstChild);
+    } else {
+      mountParent.appendChild(shelf);
     }
 
     return shelf;
   }
 
-  function renderShelf() {
+  function renderShelf(force = false) {
     const shelf = ensureShelfElement();
     if (!shelf) return;
+
+    const signature = getQueueSignature();
+    // If already rendered and queue has not changed, do NOT wipe DOM
+    if (!force && shelf.isConnected && shelf.dataset.rendered === 'true' && lastRenderedSignature === signature) {
+      return;
+    }
+
+    lastRenderedSignature = signature;
+    shelf.dataset.rendered = 'true';
 
     const totalCount = currentQueue.length;
     const watchedCount = currentQueue.filter((v) => v.isWatched).length;
@@ -826,6 +838,7 @@
         shelf.classList.add('ytq-collapsed');
       }
       currentSettings.shelfExpanded = willExpand;
+      lastRenderedSignature = getQueueSignature();
       await sendMessage({
         type: CONSTANTS.MESSAGE_TYPES.UPDATE_SETTINGS,
         settings: { shelfExpanded: willExpand },
@@ -1104,12 +1117,23 @@
     const targetNode = document.body || document.documentElement;
     if (!targetNode) return;
 
-    mutationObserver = new MutationObserver(() => {
+    mutationObserver = new MutationObserver((mutations) => {
+      // Ignore mutations occurring inside our own shelf or bookmark buttons to prevent feedback loops
+      const isOurOwn = mutations.every((m) => {
+        const el = m.target;
+        return el && el.closest && el.closest('#ytq-shelf-root, .ytq-bookmark-btn');
+      });
+      if (isOurOwn) return;
+
       if (debounceTimeout) clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(() => {
         const page = getPageType();
         if (page === 'home') {
-          renderShelf();
+          // Only mount if the shelf is NOT already in the DOM
+          const shelf = document.getElementById('ytq-shelf-root');
+          if (!shelf || !shelf.isConnected) {
+            renderShelf(false);
+          }
         }
         if (page !== 'watch' && page !== 'shorts') {
           scanAndInjectBookmarks();
@@ -1166,7 +1190,7 @@
           currentQueue = message.queue;
         }
         if (getPageType() === 'home') {
-          renderShelf();
+          renderShelf(true);
         }
         scanAndInjectBookmarks();
       } else if (message.type === CONSTANTS.MESSAGE_TYPES.UPDATE_SETTINGS) {
@@ -1175,6 +1199,7 @@
           const shelf = document.getElementById('ytq-shelf-root');
           if (shelf) {
             shelf.className = currentSettings.shelfExpanded ? 'ytq-expanded' : 'ytq-collapsed';
+            lastRenderedSignature = getQueueSignature();
           }
         }
       }

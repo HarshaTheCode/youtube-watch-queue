@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Bookmark YouTube videos into a collapsible top shelf, track watch progress, and keep your queue clean.",
   "permissions": [
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.youtube.com/*"

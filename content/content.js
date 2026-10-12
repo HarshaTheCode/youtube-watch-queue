@@ -21,6 +21,7 @@
       GET_SETTINGS: 'YTQ_GET_SETTINGS',
       UPDATE_SETTINGS: 'YTQ_UPDATE_SETTINGS',
       QUEUE_UPDATED: 'YTQ_QUEUE_UPDATED',
+      CONTEXT_MENU_SAVE: 'YTQ_CONTEXT_MENU_SAVE',
     },
     TIMINGS: {
       PROGRESS_POLL_INTERVAL_MS: 5000,
@@ -114,6 +115,9 @@
   let undoAction = null;
   let mutationObserver = null;
   let debounceTimeout = null;
+  let activeHoveredCard = null;
+  let lastRightClickedElement = null;
+  let lastRightClickTime = 0;
 
   // In-memory cache for pre-cached video duration
   const durationCache = new Map();
@@ -201,7 +205,7 @@
   // TOAST SYSTEM
   // =========================================================================
 
-  function showToast(message, onUndo) {
+  function showToast(message, onAction, actionText = 'UNDO') {
     let toast = document.getElementById('ytq-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -225,7 +229,17 @@
     const msgEl = toast.querySelector('#ytq-toast-msg');
     if (msgEl) msgEl.textContent = message;
 
-    undoAction = onUndo;
+    const btnEl = toast.querySelector('#ytq-toast-undo');
+    if (btnEl) {
+      if (typeof onAction === 'function') {
+        btnEl.textContent = actionText;
+        btnEl.style.display = 'inline-block';
+      } else {
+        btnEl.style.display = 'none';
+      }
+    }
+
+    undoAction = onAction;
     toast.classList.add('ytq-toast-visible');
 
     if (toastTimeout) clearTimeout(toastTimeout);
@@ -491,27 +505,33 @@
       thumbContainer.style.position = 'relative';
     }
 
-    const style = window.getComputedStyle(thumbContainer);
-    const rawPadTop = parseFloat(style.paddingTop) || 0;
-    const rawPadLeft = parseFloat(style.paddingLeft) || 0;
-    const borderTop = parseFloat(style.borderTopWidth) || 0;
-    const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-
-    // YouTube 16:9 containers use paddingTop: 56.25% (50px - 250px) to set aspect-ratio height.
-    // True structural edge insets are 0-12px. Anything > 16px is aspect-ratio sizing and must be ignored.
-    const effectivePadTop = (rawPadTop > 16 || rawPadTop < 0) ? 0 : rawPadTop;
-    const effectivePadLeft = (rawPadLeft > 16 || rawPadLeft < 0) ? 0 : rawPadLeft;
-
-    // Inset from inside border & padding by 8px
-    const topInset = Math.round(effectivePadTop + borderTop + 8);
-    const leftInset = Math.round(effectivePadLeft + borderLeft + 8);
-
-    btn.style.setProperty('--ytq-btn-top', `${topInset}px`);
-    btn.style.setProperty('--ytq-btn-left', `${leftInset}px`);
-    btn.style.top = `${topInset}px`;
-    btn.style.left = `${leftInset}px`;
+    // Unified 8px placement ensures exact pixel alignment with preview player button (zero offset)
+    btn.style.setProperty('--ytq-btn-top', '8px');
+    btn.style.setProperty('--ytq-btn-left', '8px');
+    btn.style.top = '8px';
+    btn.style.left = '8px';
     btn.style.right = 'auto';
     btn.style.bottom = 'auto';
+  }
+
+  /**
+   * Synchronize visual states of all bookmark buttons for a given video ID across the page
+   * (both static thumbnail buttons and inline preview player buttons).
+   */
+  function syncButtonStates(videoId, isSaved) {
+    if (!videoId) return;
+    const allBtns = document.querySelectorAll(`.ytq-bookmark-btn[data-video-id="${videoId}"]`);
+    allBtns.forEach((b) => {
+      if (isSaved) {
+        b.classList.add('ytq-saved');
+        b.title = 'In Watch Queue (Click to remove)';
+        b.setAttribute('aria-label', 'Remove from Watch Queue');
+      } else {
+        b.classList.remove('ytq-saved');
+        b.title = 'Add to Watch Queue';
+        b.setAttribute('aria-label', 'Add to Watch Queue');
+      }
+    });
   }
 
   /**
@@ -528,25 +548,136 @@
       target.dataset.ytqHoverBound = 'true';
 
       target.addEventListener('mouseenter', () => {
-        card.classList.add('ytq-card-hovered');
-        if (btn) {
-          btn.classList.add('ytq-visible');
-          if (thumbContainer) applyContainerInsets(thumbContainer, btn);
+        activeHoveredCard = card;
+        // If inline preview player is already active on this card, inject preview button immediately
+        const previewEl = card.querySelector('ytd-video-preview') || document.querySelector('ytd-video-preview');
+        if (previewEl) {
+          injectPreviewBookmarkButton(previewEl);
         }
       });
 
       target.addEventListener('mouseleave', () => {
         setTimeout(() => {
-          const isCardHovered = card.matches(':hover');
-          const isBtnHovered = btn && btn.matches(':hover');
-          const isThumbHovered = thumbContainer && thumbContainer.matches(':hover');
-          if (!isCardHovered && !isBtnHovered && !isThumbHovered) {
-            card.classList.remove('ytq-card-hovered');
-            if (btn) btn.classList.remove('ytq-visible');
+          const previewEl = document.querySelector('ytd-video-preview');
+          const isPreviewActiveForCard = previewEl && (
+            previewEl.closest(CONSTANTS.SELECTORS.VIDEO_CARD) === card ||
+            activeHoveredCard === card
+          );
+          if (!isPreviewActiveForCard && activeHoveredCard === card) {
+            activeHoveredCard = null;
           }
-        }, 50);
+        }, 80);
       });
     });
+  }
+
+  /**
+   * Injects or updates a dedicated bookmark button directly inside YouTube's active
+   * inline video preview player (<ytd-video-preview>). Ensures the button remains visible,
+   * fully interactive, and properly positioned at top-left even while video is playing.
+   */
+  function injectPreviewBookmarkButton(previewEl) {
+    if (!previewEl || previewEl.nodeType !== Node.ELEMENT_NODE) return;
+
+    // 1. Resolve associated video ID and card container
+    let card = previewEl.closest(CONSTANTS.SELECTORS.VIDEO_CARD) ||
+               previewEl.closest('ytd-rich-item-renderer, yt-lockup-view-model, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-rich-grid-media');
+
+    let videoId = card ? extractVideoIdFromElement(card) : null;
+
+    if (!videoId) {
+      videoId = extractVideoIdFromElement(previewEl);
+    }
+
+    if (!videoId && activeHoveredCard) {
+      videoId = extractVideoIdFromElement(activeHoveredCard);
+      if (!card) card = activeHoveredCard;
+    }
+
+    if (!videoId) return;
+
+    // Mutual Exclusivity: when preview player is active, hide all static buttons on this card to prevent double-layer ghosting!
+    if (card) {
+      card.classList.add('ytq-has-preview');
+      const staticBtns = card.querySelectorAll('.ytq-bookmark-btn:not(.ytq-preview-btn)');
+      staticBtns.forEach((b) => b.classList.add('ytq-hidden-behind-preview'));
+    }
+
+    const isSaved = currentQueue.some((v) => v.id === videoId);
+
+    // 2. Locate internal mount target inside <ytd-video-preview>
+    const mountParent = previewEl.querySelector('.ytp-inline-preview-ui') ||
+                        previewEl.querySelector('#container') ||
+                        previewEl;
+
+    if (!mountParent) return;
+
+    if (window.getComputedStyle(mountParent).position === 'static') {
+      mountParent.style.position = 'relative';
+    }
+
+    let btn = previewEl.querySelector(`.ytq-preview-btn[data-video-id="${videoId}"]`);
+
+    if (!btn) {
+      // Remove any stale preview button from a previous video preview session
+      const staleBtn = previewEl.querySelector('.ytq-preview-btn');
+      if (staleBtn) staleBtn.remove();
+
+      btn = document.createElement('div');
+      btn.className = `ytq-bookmark-btn ytq-preview-btn ${isSaved ? 'ytq-saved' : ''}`;
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('tabindex', '0');
+      btn.dataset.videoId = videoId;
+      btn.setAttribute('aria-label', isSaved ? 'Remove from Watch Queue' : 'Add to Watch Queue');
+      btn.title = isSaved ? 'In Watch Queue (Click to remove)' : 'Add to Watch Queue';
+      btn.innerHTML = ICONS.BOOKMARK;
+
+      btn.style.setProperty('--ytq-btn-top', '8px');
+      btn.style.setProperty('--ytq-btn-left', '8px');
+      btn.style.top = '8px';
+      btn.style.left = '8px';
+      btn.style.right = 'auto';
+      btn.style.bottom = 'auto';
+
+      const clickHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        handleBookmarkToggle(card || previewEl, videoId, btn);
+      };
+
+      btn.addEventListener('click', clickHandler, true);
+      btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          handleBookmarkToggle(card || previewEl, videoId, btn);
+        }
+      });
+
+      const durationInfo = extractDuration(card || previewEl, videoId, null);
+      if (durationInfo && durationInfo.seconds > 0) {
+        btn.dataset.durationFormatted = durationInfo.formatted;
+        btn.dataset.durationSeconds = String(durationInfo.seconds);
+      }
+
+      mountParent.appendChild(btn);
+    } else {
+      // If already mounted, ensure correct saved state and position
+      if (isSaved) {
+        btn.classList.add('ytq-saved');
+        btn.title = 'In Watch Queue (Click to remove)';
+        btn.setAttribute('aria-label', 'Remove from Watch Queue');
+      } else {
+        btn.classList.remove('ytq-saved');
+        btn.title = 'Add to Watch Queue';
+        btn.setAttribute('aria-label', 'Add to Watch Queue');
+      }
+      btn.style.top = '8px';
+      btn.style.left = '8px';
+      btn.style.right = 'auto';
+      btn.style.bottom = 'auto';
+    }
   }
 
   /**
@@ -559,15 +690,43 @@
     const videoId = extractVideoIdFromElement(card);
     if (!videoId) return;
 
-    const thumbContainer = findThumbnailContainer(card);
+    const fullCard = getFullCardContainer(card) || card;
+    const thumbContainer = findThumbnailContainer(fullCard) || findThumbnailContainer(card);
     if (!thumbContainer) return;
+
+    // Strict Card-Level Single-Instance Check:
+    // If this fullCard already has a static button anywhere in its tree, purge any duplicate extras
+    const existingCardBtns = fullCard.querySelectorAll('.ytq-bookmark-btn:not(.ytq-preview-btn)');
+    if (existingCardBtns.length > 0) {
+      for (let i = 1; i < existingCardBtns.length; i++) {
+        existingCardBtns[i].remove();
+      }
+      const existingBtn = existingCardBtns[0];
+      if (existingBtn.dataset.videoId === videoId) {
+        const isSaved = currentQueue.some((v) => v.id === videoId);
+        if (isSaved) {
+          existingBtn.classList.add('ytq-saved');
+          existingBtn.title = 'In Watch Queue (Click to remove)';
+          existingBtn.setAttribute('aria-label', 'Remove from Watch Queue');
+        } else {
+          existingBtn.classList.remove('ytq-saved');
+          existingBtn.title = 'Add to Watch Queue';
+          existingBtn.setAttribute('aria-label', 'Add to Watch Queue');
+        }
+        applyContainerInsets(thumbContainer, existingBtn);
+        bindCardHoverEvents(fullCard, existingBtn, thumbContainer);
+        return;
+      } else {
+        existingBtn.remove();
+      }
+    }
 
     const isSaved = currentQueue.some((v) => v.id === videoId);
     let btn = thumbContainer.querySelector(`.ytq-bookmark-btn[data-video-id="${videoId}"]`);
 
     if (!btn) {
       // Remove any stale button from previous reused virtual DOM node
-      const staleBtn = thumbContainer.querySelector('.ytq-bookmark-btn');
+      const staleBtn = fullCard.querySelector('.ytq-bookmark-btn:not(.ytq-preview-btn)');
       if (staleBtn) staleBtn.remove();
 
       btn = document.createElement('div');
@@ -642,9 +801,7 @@
     if (isCurrentlySaved) {
       // Remove
       const existing = currentQueue.find((v) => v.id === videoId);
-      btn.classList.remove('ytq-saved');
-      btn.title = 'Add to Watch Queue';
-      btn.setAttribute('aria-label', 'Add to Watch Queue');
+      syncButtonStates(videoId, false);
 
       currentQueue = currentQueue.filter((v) => v.id !== videoId);
       renderShelf();
@@ -672,10 +829,11 @@
       // Add
       const videoData = extractVideoMetadata(card, videoId, btn);
 
-      btn.classList.add('ytq-saved', 'ytq-animating');
-      setTimeout(() => btn.classList.remove('ytq-animating'), 350);
-      btn.title = 'In Watch Queue (Click to remove)';
-      btn.setAttribute('aria-label', 'Remove from Watch Queue');
+      if (btn) {
+        btn.classList.add('ytq-animating');
+        setTimeout(() => btn.classList.remove('ytq-animating'), 350);
+      }
+      syncButtonStates(videoId, true);
 
       currentQueue.unshift(videoData);
       renderShelf();
@@ -690,6 +848,140 @@
         renderShelf();
       }
     }
+  }
+
+  /**
+   * Extract video metadata when user saves from YouTube Watch or Shorts page
+   */
+  function extractWatchPageMetadata(videoId) {
+    const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, ytd-watch-metadata #title, #title h1, h1.title');
+    const title = titleEl ? titleEl.textContent.trim() : (document.title ? document.title.replace(/\s*-\s*YouTube$/, '').trim() : 'YouTube Video');
+
+    const channelEl = document.querySelector('ytd-watch-metadata #channel-name #text, #owner #channel-name a, ytd-channel-name #text, #channel-name');
+    const channelName = channelEl ? channelEl.textContent.trim() : 'YouTube Channel';
+
+    const videoEl = document.querySelector(CONSTANTS.SELECTORS.PLAYER_VIDEO);
+    let durationSeconds = 0;
+    let durationFormatted = '0:00';
+    if (videoEl && videoEl.duration && !isNaN(videoEl.duration) && videoEl.duration > 0) {
+      durationSeconds = Math.round(videoEl.duration);
+      durationFormatted = CONSTANTS.formatDuration(durationSeconds);
+    }
+
+    return {
+      id: videoId,
+      title: title || 'YouTube Video',
+      channelName: channelName || 'YouTube Channel',
+      thumbnailUrl: CONSTANTS.getThumbnailUrl(videoId),
+      durationSeconds,
+      durationFormatted,
+      savedAt: new Date().toISOString(),
+      progress: 0,
+      lastWatchedAt: null,
+      isWatched: false,
+    };
+  }
+
+  /**
+   * Handles saving / toggling a video triggered via Right-Click Context Menu
+   */
+  async function handleContextMenuSave(message) {
+    let videoId = message.videoId || null;
+    let card = null;
+
+    // 1. Try to find card from last right-clicked element (recorded within last 60 seconds)
+    if (lastRightClickedElement && (Date.now() - lastRightClickTime < 60000)) {
+      card = getFullCardContainer(lastRightClickedElement);
+      if (!videoId && card) {
+        videoId = extractVideoIdFromElement(card);
+      }
+      if (!videoId) {
+        const previewEl = lastRightClickedElement.closest && lastRightClickedElement.closest('ytd-video-preview');
+        if (previewEl) {
+          videoId = extractVideoIdFromElement(previewEl);
+        }
+      }
+    }
+
+    // 2. Fallback to message linkUrl / srcUrl
+    if (!videoId && message.linkUrl) {
+      videoId = CONSTANTS.extractVideoId(message.linkUrl);
+    }
+    if (!videoId && message.srcUrl) {
+      videoId = CONSTANTS.extractVideoId(message.srcUrl);
+    }
+
+    // 3. Fallback to active hovered card
+    if (!videoId && activeHoveredCard) {
+      videoId = extractVideoIdFromElement(activeHoveredCard);
+      if (!card) card = activeHoveredCard;
+    }
+
+    // 4. Fallback to page URL if on watch/shorts page
+    if (!videoId) {
+      videoId = CONSTANTS.extractVideoId(window.location.href) || CONSTANTS.extractVideoId(message.pageUrl);
+    }
+
+    if (!videoId) {
+      return { handled: false, error: 'Could not resolve video ID' };
+    }
+
+    // If card was not found, search DOM for matching video anchor
+    if (!card) {
+      const anchor = document.querySelector(`a[href*="${videoId}"]:not(#ytq-shelf-root a)`);
+      if (anchor) {
+        card = getFullCardContainer(anchor);
+      }
+    }
+
+    // Check if video is already saved in the queue
+    const isSaved = currentQueue.some((v) => v.id === videoId);
+
+    if (isSaved) {
+      showToast('Already in Watch Queue', async () => {
+        await handleBookmarkToggle(card, videoId, null);
+      }, 'REMOVE');
+      return { handled: true, action: 'already_saved', videoId };
+    }
+
+    // Extract metadata
+    let videoData;
+    if (card) {
+      videoData = extractVideoMetadata(card, videoId, null);
+    } else if (getPageType() === 'watch' || getPageType() === 'shorts') {
+      videoData = extractWatchPageMetadata(videoId);
+    } else {
+      videoData = {
+        id: videoId,
+        title: 'YouTube Video',
+        channelName: 'YouTube Channel',
+        thumbnailUrl: CONSTANTS.getThumbnailUrl(videoId),
+        durationSeconds: 0,
+        durationFormatted: '0:00',
+        savedAt: new Date().toISOString(),
+        progress: 0,
+        lastWatchedAt: null,
+        isWatched: false,
+      };
+    }
+
+    // Add to queue
+    currentQueue.unshift(videoData);
+    syncButtonStates(videoId, true);
+    if (getPageType() === 'home') {
+      renderShelf();
+    }
+
+    await sendMessage({
+      type: CONSTANTS.MESSAGE_TYPES.ADD_VIDEO,
+      video: videoData,
+    });
+
+    showToast('Added to Watch Queue', async () => {
+      await handleBookmarkToggle(card, videoId, null);
+    }, 'UNDO');
+
+    return { handled: true, action: 'added', video: videoData };
   }
 
   /**
@@ -730,13 +1022,13 @@
   }
 
   /**
-   * Universal scanner: finds both cards and direct thumbnail anchors
+   * Universal scanner: finds cards, direct thumbnail anchors, and active preview players
    */
   function scanAndInjectBookmarks() {
     const page = getPageType();
     if (page === 'watch' || page === 'shorts') return;
 
-    // 1. Scan primary card containers
+    // 1. Scan primary card containers (Static thumbnails)
     const cards = document.querySelectorAll(CONSTANTS.SELECTORS.VIDEO_CARD);
     cards.forEach((card) => {
       injectBookmarkButton(card);
@@ -747,11 +1039,19 @@
     thumbLinks.forEach((a) => {
       const card = getFullCardContainer(a) || a.parentElement;
       if (card) {
+        // If this card already has a static bookmark button anywhere in its tree, skip it!
+        if (card.querySelector('.ytq-bookmark-btn:not(.ytq-preview-btn)')) return;
         injectBookmarkButton(card);
       }
     });
 
-    // 3. Backfill any missing durations for saved videos currently on page
+    // 3. Dual-Anchor: Scan and inject into any active inline video preview player
+    const previewPlayers = document.querySelectorAll('ytd-video-preview');
+    previewPlayers.forEach((previewEl) => {
+      injectPreviewBookmarkButton(previewEl);
+    });
+
+    // 4. Backfill any missing durations for saved videos currently on page
     backfillDurationsFromPage();
   }
 
@@ -1255,12 +1555,35 @@
     if (!targetNode) return;
 
     mutationObserver = new MutationObserver((mutations) => {
-      // Ignore mutations occurring inside our own shelf or bookmark buttons to prevent feedback loops
-      const isOurOwn = mutations.every((m) => {
+      // 1. Instant check for dynamically mounted <ytd-video-preview>
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const preview = node.tagName === 'YTD-VIDEO-PREVIEW'
+              ? node
+              : (node.querySelector ? node.querySelector('ytd-video-preview') : null);
+            if (preview) {
+              injectPreviewBookmarkButton(preview);
+            }
+          }
+        }
+        for (const node of m.removedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE && (node.tagName === 'YTD-VIDEO-PREVIEW' || (node.querySelector && node.querySelector('ytd-video-preview')))) {
+            document.querySelectorAll('.ytq-has-preview').forEach((c) => c.classList.remove('ytq-has-preview'));
+            document.querySelectorAll('.ytq-hidden-behind-preview').forEach((b) => b.classList.remove('ytq-hidden-behind-preview'));
+          }
+        }
+      }
+
+      // 2. Ignore mutations occurring inside our shelf, buttons, or video playback ticks
+      // (subtitles, timer displays, stream progress) to prevent rapid re-render flickering
+      const isNoise = mutations.every((m) => {
         const el = m.target;
-        return el && el.closest && el.closest('#ytq-shelf-root, .ytq-bookmark-btn');
+        return el && el.closest && el.closest(
+          '#ytq-shelf-root, .ytq-bookmark-btn, .caption-window, .ytp-caption-window-container, .ytp-time-display, .ytp-progress-bar, video, .html5-video-player'
+        );
       });
-      if (isOurOwn) return;
+      if (isNoise) return;
 
       if (debounceTimeout) clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(() => {
@@ -1303,6 +1626,18 @@
     handlePageChange();
     scanAndInjectBookmarks();
 
+    // Global lightweight mouseover listener to track active hovered card and instant preview injection
+    document.addEventListener('mouseover', (e) => {
+      const card = e.target.closest && e.target.closest(CONSTANTS.SELECTORS.VIDEO_CARD);
+      if (card) {
+        activeHoveredCard = card;
+      }
+      const preview = e.target.closest && e.target.closest('ytd-video-preview');
+      if (preview) {
+        injectPreviewBookmarkButton(preview);
+      }
+    }, { passive: true });
+
     [300, 800, 1500, 3000, 5000].forEach((delay) => {
       setTimeout(scanAndInjectBookmarks, delay);
     });
@@ -1319,7 +1654,13 @@
     window.addEventListener('spfdone', handlePageChange);
     window.addEventListener('popstate', handlePageChange);
 
-    chrome.runtime.onMessage.addListener((message) => {
+    // Track right-clicked elements for Context Menu bookmarking
+    document.addEventListener('contextmenu', (e) => {
+      lastRightClickedElement = e.target;
+      lastRightClickTime = Date.now();
+    }, true);
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (!message || !message.type) return;
 
       if (message.type === CONSTANTS.MESSAGE_TYPES.QUEUE_UPDATED) {
@@ -1339,6 +1680,13 @@
             lastRenderedSignature = getQueueSignature();
           }
         }
+      } else if (message.type === (CONSTANTS.MESSAGE_TYPES.CONTEXT_MENU_SAVE || 'YTQ_CONTEXT_MENU_SAVE')) {
+        handleContextMenuSave(message).then((res) => {
+          if (typeof sendResponse === 'function') sendResponse(res);
+        }).catch((err) => {
+          if (typeof sendResponse === 'function') sendResponse({ handled: false, error: err.message });
+        });
+        return true;
       }
     });
 

@@ -31,6 +31,7 @@ const {
     UPDATE_SETTINGS: 'YTQ_UPDATE_SETTINGS',
     UPDATE_DURATION: 'YTQ_UPDATE_DURATION',
     QUEUE_UPDATED: 'YTQ_QUEUE_UPDATED',
+    CONTEXT_MENU_SAVE: 'YTQ_CONTEXT_MENU_SAVE',
   },
 });
 
@@ -200,18 +201,96 @@ async function repairMissingDurations() {
   }
 }
 
-// Initial badge update on service worker launch & repair missing durations
+const CONTEXT_MENU_ID = 'ytq-context-save-video';
+
+/**
+ * Configure Right-Click Context Menu for YouTube links and videos
+ */
+function setupContextMenu() {
+  if (!chrome.contextMenus) return;
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: CONTEXT_MENU_ID,
+        title: 'Save to Watch Queue',
+        contexts: ['link', 'video', 'page', 'image', 'frame'],
+        documentUrlPatterns: ['*://*.youtube.com/*'],
+      }, () => {
+        if (chrome.runtime.lastError) {
+          // Ignore duplicate registration error
+        }
+      });
+    });
+  } catch (err) {
+    console.warn('YTQ: Error registering context menu:', err);
+  }
+}
+
+// Initial badge update on service worker launch, setup context menu & repair missing durations
 chrome.runtime.onInstalled.addListener(async () => {
+  setupContextMenu();
   const queue = await getQueue();
   await updateBadge(queue);
   repairMissingDurations();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  setupContextMenu();
   const queue = await getQueue();
   await updateBadge(queue);
   repairMissingDurations();
 });
+
+// Context Menu Click Handler: Delegates to active tab for metadata & toast, falls back to direct save
+if (chrome.contextMenus && chrome.contextMenus.onClicked) {
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId !== CONTEXT_MENU_ID) return;
+
+    const targetUrl = info.linkUrl || info.srcUrl || info.pageUrl || (tab ? tab.url : '');
+    const videoId = typeof YTQ_CONSTANTS !== 'undefined' && YTQ_CONSTANTS.extractVideoId
+      ? YTQ_CONSTANTS.extractVideoId(targetUrl)
+      : (targetUrl.match(/(?:v=|youtu\.be\/|embed\/|\/watch\?v=|\/watch\?.+&v=|\/shorts\/)([a-zA-Z0-9_-]{11})/) || [])[1];
+
+    if (tab && tab.id) {
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          type: MESSAGE_TYPES.CONTEXT_MENU_SAVE || 'YTQ_CONTEXT_MENU_SAVE',
+          linkUrl: info.linkUrl || '',
+          pageUrl: info.pageUrl || '',
+          srcUrl: info.srcUrl || '',
+          videoId: videoId,
+        });
+        if (response && response.handled) {
+          return;
+        }
+      } catch (err) {
+        // Tab not responsive or script not loaded, proceed with background save fallback
+      }
+    }
+
+    if (videoId) {
+      const queue = await getQueue();
+      const existing = queue.find((v) => v.id === videoId);
+      if (!existing) {
+        const record = {
+          id: videoId,
+          title: 'YouTube Video',
+          channelName: 'YouTube Channel',
+          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          durationSeconds: 0,
+          durationFormatted: '0:00',
+          savedAt: new Date().toISOString(),
+          progress: 0,
+          lastWatchedAt: null,
+          isWatched: false,
+        };
+        queue.unshift(record);
+        await setQueue(queue);
+        repairMissingDurations();
+      }
+    }
+  });
+}
 
 // Main message dispatcher
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

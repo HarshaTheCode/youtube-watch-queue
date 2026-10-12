@@ -102,43 +102,60 @@ html[theme="dark"],
 }
 
 /* 
-   Show button whenever:
-   - Card or thumbnail is hovered (via CSS or JS persistent .ytq-card-hovered)
-   - Button itself is hovered or marked .ytq-visible
-   - Thumbnail preview player is active
-   - Video is saved (.ytq-saved)
+   Active Button Visibility:
+   1. Active Inline Preview Player: Displayed when video preview is actively playing (.ytq-preview-btn, ytd-video-preview)
+   2. Bookmarked Videos: Shows saved bookmark indicator when video is already in queue (.ytq-saved)
+   CRITICAL: Button is NEVER revealed on simple card or thumbnail hover.
 */
-.ytq-card-hovered .ytq-bookmark-btn,
-.ytq-bookmark-btn.ytq-visible,
-ytd-rich-item-renderer:hover .ytq-bookmark-btn,
-yt-lockup-view-model:hover .ytq-bookmark-btn,
-[class*="ytLockupViewModel"]:hover .ytq-bookmark-btn,
-[class*="ytThumbnailViewModel"]:hover .ytq-bookmark-btn,
-.ytLockupViewModelContentImage:hover .ytq-bookmark-btn,
-[class*="ContentImage"]:hover .ytq-bookmark-btn,
-[class*="content-image"]:hover .ytq-bookmark-btn,
-ytd-video-renderer:hover .ytq-bookmark-btn,
-ytd-grid-video-renderer:hover .ytq-bookmark-btn,
-ytd-compact-video-renderer:hover .ytq-bookmark-btn,
-ytd-rich-grid-media:hover .ytq-bookmark-btn,
-ytd-thumbnail:hover .ytq-bookmark-btn,
-yt-thumbnail-view-model:hover .ytq-bookmark-btn,
-a.yt-lockup-view-model-wiz__content-image:hover .ytq-bookmark-btn,
-a#thumbnail:hover .ytq-bookmark-btn,
-a[href*="/watch?v="]:hover .ytq-bookmark-btn,
-ytd-video-preview:hover .ytq-bookmark-btn,
-ytd-inline-preview-renderer:hover .ytq-bookmark-btn,
-[id="mouseover-overlay"]:hover .ytq-bookmark-btn,
-[id="hover-overlays"]:hover .ytq-bookmark-btn,
-*:hover > .ytq-bookmark-btn,
-.ytq-bookmark-btn:hover,
+.ytq-bookmark-btn.ytq-preview-btn,
+ytd-video-preview .ytq-bookmark-btn,
+.ytp-inline-preview-ui .ytq-bookmark-btn,
+#inline-preview-player .ytq-bookmark-btn,
 .ytq-bookmark-btn.ytq-saved {
   opacity: 1 !important;
   pointer-events: auto !important;
   visibility: visible !important;
 }
 
-.ytq-bookmark-btn:hover {
+/* Guard: Static unsaved buttons are never revealed on simple thumbnail hover */
+.ytq-bookmark-btn:not(.ytq-preview-btn):not(.ytq-saved) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Dedicated Preview Player Button overrides (pinned to top-left inside active player) */
+.ytq-bookmark-btn.ytq-preview-btn {
+  top: 8px !important;
+  left: 8px !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 2147483647 !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+/* Mutual Exclusivity: Hide underlying static thumbnail button whenever preview player is active to prevent ghosting */
+.ytq-has-preview .ytq-bookmark-btn:not(.ytq-preview-btn),
+.ytq-bookmark-btn.ytq-hidden-behind-preview,
+ytd-video-preview ~ * .ytq-bookmark-btn:not(.ytq-preview-btn),
+ytd-rich-item-renderer:has(ytd-video-preview) ytd-thumbnail .ytq-bookmark-btn:not(.ytq-preview-btn),
+ytd-rich-item-renderer:has(ytd-video-preview) yt-thumbnail-view-model .ytq-bookmark-btn:not(.ytq-preview-btn),
+yt-lockup-view-model:has(ytd-video-preview) .ytq-bookmark-btn:not(.ytq-preview-btn) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Guard: Ensure no two static buttons ever display simultaneously inside the same container */
+.ytq-bookmark-btn:not(.ytq-preview-btn) ~ .ytq-bookmark-btn:not(.ytq-preview-btn) {
+  display: none !important;
+}
+
+.ytq-bookmark-btn.ytq-preview-btn:hover,
+.ytq-bookmark-btn.ytq-saved:hover {
   transform: scale(1.12) !important;
   background: rgba(10, 10, 10, 0.95) !important;
   border-color: rgba(255, 255, 255, 0.6) !important;

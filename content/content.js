@@ -470,10 +470,37 @@
   }
 
   /**
+   * Identifies the thumbnail container and dynamically computes top-left placement
+   * respecting the container's computed padding, borders, and rounded corners.
+   */
+  function applyContainerInsets(thumbContainer, btn) {
+    if (!thumbContainer || !btn) return;
+
+    // Ensure the container is positioned relative
+    thumbContainer.classList.add('ytq-relative-parent');
+    if (window.getComputedStyle(thumbContainer).position === 'static') {
+      thumbContainer.style.position = 'relative';
+    }
+
+    const style = window.getComputedStyle(thumbContainer);
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const borderTop = parseFloat(style.borderTopWidth) || 0;
+    const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+
+    // Inset from inside border & padding by 8px
+    const topInset = Math.round(padTop + borderTop + 8);
+    const leftInset = Math.round(padLeft + borderLeft + 8);
+
+    btn.style.setProperty('--ytq-btn-top', `${topInset}px`);
+    btn.style.setProperty('--ytq-btn-left', `${leftInset}px`);
+  }
+
+  /**
    * Bind card-level persistent hover events to keep the bookmark button visible
    * even when YouTube inline playback / mouseover-overlay activates.
    */
-  function bindCardHoverEvents(card, btn) {
+  function bindCardHoverEvents(card, btn, thumbContainer) {
     if (!card || card.dataset.ytqHoverBound === 'true') return;
     card.dataset.ytqHoverBound = 'true';
 
@@ -481,10 +508,7 @@
       card.classList.add('ytq-card-hovered');
       if (btn) {
         btn.classList.add('ytq-visible');
-        const hasThirdParty = Boolean(
-          card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
-        );
-        btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
+        if (thumbContainer) applyContainerInsets(thumbContainer, btn);
       }
     });
 
@@ -506,12 +530,6 @@
 
     const thumbContainer = findThumbnailContainer(card);
     if (!thumbContainer) return;
-
-    // Ensure the container is positioned relative
-    thumbContainer.classList.add('ytq-relative-parent');
-    if (window.getComputedStyle(thumbContainer).position === 'static') {
-      thumbContainer.style.position = 'relative';
-    }
 
     const isSaved = currentQueue.some((v) => v.id === videoId);
     let btn = thumbContainer.querySelector(`.ytq-bookmark-btn[data-video-id="${videoId}"]`);
@@ -554,11 +572,7 @@
         btn.dataset.durationSeconds = String(durationInfo.seconds);
       }
 
-      const hasThirdParty = Boolean(
-        card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
-      );
-      btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
-
+      applyContainerInsets(thumbContainer, btn);
       thumbContainer.appendChild(btn);
     } else {
       // Button already exists: update saved state
@@ -572,10 +586,7 @@
         btn.setAttribute('aria-label', 'Add to Watch Queue');
       }
 
-      const hasThirdParty = Boolean(
-        card.querySelector('[class*="vidiq"], [id*="vidiq"], [class*="extension"], [id*="extension"]')
-      );
-      btn.style.setProperty('--ytq-top-offset', hasThirdParty ? '116px' : '80px');
+      applyContainerInsets(thumbContainer, btn);
 
       // Update cached duration if it was missing previously
       if (!btn.dataset.durationFormatted || btn.dataset.durationFormatted === '0:00') {
@@ -588,7 +599,7 @@
     }
 
     // Attach card-level hover handlers so button never disappears mid-hover
-    bindCardHoverEvents(card, btn);
+    bindCardHoverEvents(card, btn, thumbContainer);
   }
 
   /**

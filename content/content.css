@@ -10,7 +10,7 @@
   --ytq-bg-hover: #E5E5E5;
   --ytq-text-primary: #0F0F0F;
   --ytq-text-secondary: #606060;
-  --ytq-accent-red: #CC4B4B; /* Subdued dull red */
+  --ytq-accent-red: #D32F2F; /* Muted Brick Red */
   --ytq-accent-blue: #065FD4;
   --ytq-border: #E5E5E5;
   --ytq-overlay-dark: rgba(0, 0, 0, 0.8);
@@ -18,7 +18,7 @@
   --ytq-success-green: #2BA640;
   --ytq-toast-bg: #323232;
   --ytq-toast-text: #FFFFFF;
-  --ytq-bookmark-fill: #CC4B4B;
+  --ytq-bookmark-fill: #D32F2F;
   --ytq-bookmark-stroke: #FFFFFF;
   --ytq-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
   --ytq-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.16);
@@ -36,7 +36,7 @@ html[theme="dark"],
   --ytq-bg-hover: #3F3F3F;
   --ytq-text-primary: #F1F1F1;
   --ytq-text-secondary: #AAAAAA;
-  --ytq-accent-red: #CC4B4B; /* Subdued dull red */
+  --ytq-accent-red: #D32F2F; /* Muted Brick Red */
   --ytq-accent-blue: #3EA6FF;
   --ytq-border: #3F3F3F;
   --ytq-overlay-dark: rgba(0, 0, 0, 0.8);
@@ -72,8 +72,9 @@ html[theme="dark"],
 /* The bookmark button wrapper injected into video thumbnail containers */
 .ytq-bookmark-btn {
   position: absolute !important;
-  top: var(--ytq-top-offset, 116px) !important;
-  right: 8px !important;
+  top: var(--ytq-btn-top, 8px) !important;
+  left: var(--ytq-btn-left, 8px) !important;
+  right: auto !important;
   width: 32px !important;
   height: 32px !important;
   border-radius: 50% !important;
@@ -85,10 +86,10 @@ html[theme="dark"],
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  z-index: 9999999 !important; /* Topmost stacking context above inline preview player */
+  z-index: 9999999 !important; /* Topmost stacking context */
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms ease, transform 150ms ease, background-color 150ms ease !important;
+  transition: opacity 180ms ease, transform 150ms ease, background-color 150ms ease, border-color 150ms ease !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6) !important;
   box-sizing: border-box !important;
   user-select: none !important;

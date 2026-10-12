@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="../content/content.css">
   <style>
     :root {
-      --ytq-accent-red: #CC4B4B; /* Subdued dull red */
-      --active-red: #CC4B4B;
+      --ytq-accent-red: #D32F2F; /* Muted Brick Red */
+      --active-red: #D32F2F;
     }
 
     body {
@@ -592,10 +592,10 @@
         <div class="panel-row">
           <div class="control-group">
             <label>Dull Red Shade:</label>
-            <button class="color-btn active" data-color="#CC4B4B">
+            <button class="color-btn" data-color="#CC4B4B">
               <span class="color-dot" style="background: #CC4B4B;"></span>Dull Crimson (#CC4B4B)
             </button>
-            <button class="color-btn" data-color="#D32F2F">
+            <button class="color-btn active" data-color="#D32F2F">
               <span class="color-dot" style="background: #D32F2F;"></span>Muted Brick (#D32F2F)
             </button>
             <button class="color-btn" data-color="#B73232">
@@ -612,22 +612,22 @@
         <div class="panel-row">
           <div class="control-group">
             <label>Position Presets:</label>
-            <button class="preset-btn active" id="btn-pos-below-all" data-top="116" data-right="8" data-left="auto">
-              1. Below vidIQ (Right: top: 116px)
+            <button class="preset-btn active" id="btn-pos-top-left" data-top="8" data-right="auto" data-left="8">
+              1. Top-Left Corner (top: 8px, left: 8px)
+            </button>
+            <button class="preset-btn" id="btn-pos-below-all" data-top="116" data-right="8" data-left="auto">
+              2. Below vidIQ (Right: top: 116px)
             </button>
             <button class="preset-btn" id="btn-pos-below-cc" data-top="80" data-right="8" data-left="auto">
-              2. Below CC (Right: top: 80px)
-            </button>
-            <button class="preset-btn" id="btn-pos-top-left" data-top="8" data-right="auto" data-left="8">
-              3. Top-Left Corner (top: 8px, left: 8px)
+              3. Below CC (Right: top: 80px)
             </button>
           </div>
 
           <div class="control-group">
             <label>Fine-Tune 'top':</label>
             <div class="slider-wrap">
-              <input type="range" id="top-slider" min="40" max="130" value="116">
-              <span class="slider-val-tag" id="top-slider-val">116px</span>
+              <input type="range" id="top-slider" min="4" max="130" value="8">
+              <span class="slider-val-tag" id="top-slider-val">8px</span>
             </div>
           </div>
         </div>
@@ -652,8 +652,8 @@
         <!-- 2. Interactive Live Mock Card -->
         <div class="compare-box">
           <div class="compare-box-header">
-            <div class="compare-box-title">2. Live Interactive Placement Mock (Dull Red Ribbon)</div>
-            <span class="compare-box-tag" id="current-pos-tag">top: 116px, right: 8px</span>
+            <div class="compare-box-title">2. Live Interactive Placement Mock (Muted Brick #D32F2F)</div>
+            <span class="compare-box-tag" id="current-pos-tag">top: 8px, left: 8px</span>
           </div>
           <div class="mock-preview-viewport" id="viewport">
             <img class="bg-poster" src="./user-screenshot.png" alt="Preview Video">
@@ -689,14 +689,14 @@
             </div>
 
             <!-- 4. Watch Queue Save Button with Dull Red Fill -->
-            <div class="sim-ytq-bookmark is-saved" id="sim-bookmark" role="button" title="Watch Queue (Click to toggle)" style="top: 116px; right: 8px; left: auto;">
+            <div class="sim-ytq-bookmark is-saved" id="sim-bookmark" role="button" title="Watch Queue (Click to toggle)" style="top: 8px; left: 8px; right: auto;">
               <svg viewBox="0 0 24 24">
                 <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
               </svg>
             </div>
           </div>
           <div class="compare-note" id="status-explanation">
-            Status: Sits cleanly <strong>below vidIQ</strong> at <code>top: 116px, right: 8px</code> in <strong>dull crimson (#CC4B4B)</strong>. Leaves <strong>35px+ clearance</strong> above the <code>25:41</code> duration badge with 0% overlap.
+            Status: Placed in the <strong>Top-Left corner</strong> (<code>top: 8px, left: 8px</code>) in <strong>Muted Brick (#D32F2F)</strong>. 100% free space with <strong>zero conflicts</strong> against YouTube's Mute/CC controls and third-party extensions on the right side!
           </div>
         </div>
       </div>

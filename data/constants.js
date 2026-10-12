@@ -65,6 +65,8 @@
     THUMBNAIL_CONTAINER: [
       'yt-thumbnail-view-model',
       'a.yt-lockup-view-model-wiz__content-image',
+      'a.ytLockupViewModelContentImage',
+      'a[class*="ContentImage"]',
       'a[class*="content-image"]',
       'ytd-thumbnail',
       '#thumbnail',

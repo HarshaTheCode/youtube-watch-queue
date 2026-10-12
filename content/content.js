@@ -277,6 +277,8 @@
     const selectors = [
       'yt-thumbnail-view-model',
       'a.yt-lockup-view-model-wiz__content-image',
+      'a.ytLockupViewModelContentImage',
+      'a[class*="ContentImage"]',
       'a[class*="content-image"]',
       'ytd-thumbnail',
       '#thumbnail',
@@ -341,7 +343,7 @@
     // 3. Scan DOM duration badge elements
     const badgeElements = fullCard.querySelectorAll(
       CONSTANTS.SELECTORS.DURATION_BADGE +
-      ', [class*="thumbnail-overlay-time-status"], [class*="time-status"], [class*="badge-shape-wiz__text"], [class*="yt-badge-shape__text"]'
+      ', [class*="thumbnail-overlay-time-status"], [class*="time-status"], [class*="ThumbnailOverlayBadge"], [class*="thumbnail-overlay-badge"], [class*="badge-shape-wiz__text"], [class*="yt-badge-shape__text"]'
     );
     for (const badge of badgeElements) {
       const text = badge.textContent ? badge.textContent.trim() : '';
@@ -366,7 +368,7 @@
 
     // 4. Scan aria-label on links (title link, thumbnail link, watch links)
     const links = fullCard.querySelectorAll(
-      'a[href*="/watch?v="], a#video-title, a#video-title-link, a.yt-lockup-metadata-view-model-wiz__title, a#thumbnail, a[class*="content-image"]'
+      'a[href*="/watch?v="], a#video-title, a#video-title-link, a.yt-lockup-metadata-view-model-wiz__title, a#thumbnail, a[class*="ContentImage"], a[class*="content-image"]'
     );
     for (const a of links) {
       const aria = a.getAttribute('aria-label');
@@ -405,8 +407,11 @@
         '#video-title-link',
         'a.yt-simple-endpoint#video-title',
         '.yt-lockup-metadata-view-model-wiz__title',
+        '[class*="LockupViewModelMetadata"] h3',
+        '[class*="LockupViewModelMetadata"] a',
         '[class*="metadata-view-model"] h3',
         '[class*="metadata-view-model"] a',
+        '[class*="Headline"] a',
         'h3.title-style',
         'h3',
       ];
@@ -475,6 +480,7 @@
   /**
    * Identifies the thumbnail container and dynamically computes top-left placement
    * respecting the container's computed padding, borders, and rounded corners.
+   * Filters out 16:9 aspect-ratio padding hacks (> 16px) that push buttons off-screen.
    */
   function applyContainerInsets(thumbContainer, btn) {
     if (!thumbContainer || !btn) return;
@@ -486,20 +492,26 @@
     }
 
     const style = window.getComputedStyle(thumbContainer);
-    const padTop = parseFloat(style.paddingTop) || 0;
-    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const rawPadTop = parseFloat(style.paddingTop) || 0;
+    const rawPadLeft = parseFloat(style.paddingLeft) || 0;
     const borderTop = parseFloat(style.borderTopWidth) || 0;
     const borderLeft = parseFloat(style.borderLeftWidth) || 0;
 
+    // YouTube 16:9 containers use paddingTop: 56.25% (50px - 250px) to set aspect-ratio height.
+    // True structural edge insets are 0-12px. Anything > 16px is aspect-ratio sizing and must be ignored.
+    const effectivePadTop = (rawPadTop > 16 || rawPadTop < 0) ? 0 : rawPadTop;
+    const effectivePadLeft = (rawPadLeft > 16 || rawPadLeft < 0) ? 0 : rawPadLeft;
+
     // Inset from inside border & padding by 8px
-    const topInset = Math.max(8, Math.round(padTop + borderTop + 8));
-    const leftInset = Math.max(8, Math.round(padLeft + borderLeft + 8));
+    const topInset = Math.round(effectivePadTop + borderTop + 8);
+    const leftInset = Math.round(effectivePadLeft + borderLeft + 8);
 
     btn.style.setProperty('--ytq-btn-top', `${topInset}px`);
     btn.style.setProperty('--ytq-btn-left', `${leftInset}px`);
     btn.style.top = `${topInset}px`;
     btn.style.left = `${leftInset}px`;
     btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
   }
 
   /**

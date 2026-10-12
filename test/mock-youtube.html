@@ -184,6 +184,7 @@
 
     <div class="mock-controls">
       <button class="mock-btn" id="btn-toggle-theme">Toggle Dark/Light Mode</button>
+      <button class="mock-btn" id="btn-simulate-account">Simulate Account Switch</button>
       <button class="mock-btn" id="btn-add-sample">Add More Mock Videos</button>
     </div>
   </header>
@@ -194,10 +195,10 @@
       <ytd-rich-grid-renderer>
         <h2 class="mock-section-title">Recommended Videos (Testing Classic & Modern ViewModels)</h2>
         <div id="contents">
-          <!-- Video 1: Classic Polymer ytd-rich-item-renderer -->
+          <!-- Video 1: Classic Polymer ytd-rich-item-renderer with aria-label -->
           <ytd-rich-item-renderer>
             <ytd-thumbnail>
-              <a id="thumbnail" href="/watch?v=dQw4w9WgXcQ">
+              <a id="thumbnail" href="/watch?v=dQw4w9WgXcQ" aria-label="3 minutes, 33 seconds">
                 <img src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" alt="Video thumbnail">
               </a>
               <div class="badge-shape">
@@ -207,14 +208,14 @@
             <div class="mock-details">
               <div class="mock-avatar"></div>
               <div class="mock-meta">
-                <a id="video-title" href="/watch?v=dQw4w9WgXcQ">Rick Astley - Never Gonna Give You Up (Official Music Video)</a>
+                <a id="video-title" href="/watch?v=dQw4w9WgXcQ" aria-label="Rick Astley - Never Gonna Give You Up by Rick Astley 14 years ago 3 minutes, 33 seconds 1.5B views">Rick Astley - Never Gonna Give You Up (Official Music Video)</a>
                 <ytd-channel-name><span id="text">Rick Astley</span></ytd-channel-name>
                 <span class="mock-views">1.5B views · 14 years ago</span>
               </div>
             </div>
           </ytd-rich-item-renderer>
 
-          <!-- Video 2: Modern 2025/2026 yt-lockup-view-model -->
+          <!-- Video 2: Modern 2025/2026 yt-lockup-view-model with aria-label duration -->
           <ytd-rich-item-renderer>
             <yt-lockup-view-model>
               <div class="yt-lockup-view-model-wiz">
@@ -224,15 +225,17 @@
                       <img class="yt-core-image" src="https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg" alt="Video thumbnail">
                     </div>
                   </yt-thumbnail-view-model>
-                  <div class="badge-shape">
-                    <span class="badge-shape-wiz__text">0:19</span>
-                  </div>
+                  <yt-thumbnail-overlay-badge-view-model>
+                    <badge-shape>
+                      <span class="yt-badge-shape__text">0:19</span>
+                    </badge-shape>
+                  </yt-thumbnail-overlay-badge-view-model>
                 </a>
               </div>
               <div class="mock-details">
                 <div class="mock-avatar"></div>
                 <div class="mock-meta">
-                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=jNQXAC9IVRw">Me at the zoo - First Video on YouTube (Modern ViewModel)</a>
+                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=jNQXAC9IVRw" aria-label="Me at the zoo by jawed 19 years ago 19 seconds 315M views">Me at the zoo - First Video on YouTube (Modern ViewModel)</a>
                   <div class="channel-name-text">jawed</div>
                   <span class="mock-views">315M views · 19 years ago</span>
                 </div>
@@ -240,7 +243,7 @@
             </yt-lockup-view-model>
           </ytd-rich-item-renderer>
 
-          <!-- Video 3: Classic Polymer -->
+          <!-- Video 3: Classic Polymer with 4:12 duration -->
           <ytd-rich-item-renderer>
             <ytd-thumbnail>
               <a id="thumbnail" href="/watch?v=kJQP7kiw5Fk">
@@ -253,14 +256,14 @@
             <div class="mock-details">
               <div class="mock-avatar"></div>
               <div class="mock-meta">
-                <a id="video-title" href="/watch?v=kJQP7kiw5Fk">Luis Fonsi - Despacito ft. Daddy Yankee</a>
+                <a id="video-title" href="/watch?v=kJQP7kiw5Fk" aria-label="Luis Fonsi - Despacito by Luis Fonsi 7 years ago 4 minutes, 12 seconds 8.2B views">Luis Fonsi - Despacito ft. Daddy Yankee</a>
                 <ytd-channel-name><span id="text">Luis Fonsi</span></ytd-channel-name>
                 <span class="mock-views">8.2B views · 7 years ago</span>
               </div>
             </div>
           </ytd-rich-item-renderer>
 
-          <!-- Video 4: Modern yt-lockup-view-model -->
+          <!-- Video 4: Modern yt-lockup-view-model with 4:13 duration -->
           <ytd-rich-item-renderer>
             <yt-lockup-view-model>
               <div class="yt-lockup-view-model-wiz">
@@ -270,15 +273,17 @@
                       <img class="yt-core-image" src="https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg" alt="Video thumbnail">
                     </div>
                   </yt-thumbnail-view-model>
-                  <div class="badge-shape">
-                    <span class="badge-shape-wiz__text">4:13</span>
-                  </div>
+                  <yt-thumbnail-overlay-badge-view-model>
+                    <badge-shape>
+                      <span class="yt-badge-shape__text">4:13</span>
+                    </badge-shape>
+                  </yt-thumbnail-overlay-badge-view-model>
                 </a>
               </div>
               <div class="mock-details">
                 <div class="mock-avatar"></div>
                 <div class="mock-meta">
-                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=9bZkp7q19f0">PSY - GANGNAM STYLE (강남스타일) M/V</a>
+                  <a class="yt-lockup-metadata-view-model-wiz__title" href="/watch?v=9bZkp7q19f0" aria-label="PSY - GANGNAM STYLE by officialpsy 12 years ago 4 minutes, 13 seconds 5.1B views">PSY - GANGNAM STYLE (강남스타일) M/V</a>
                   <div class="channel-name-text">officialpsy</div>
                   <span class="mock-views">5.1B views · 12 years ago</span>
                 </div>
@@ -300,6 +305,14 @@
       }
     });
 
+    // Simulate account switch / SPA navigation
+    const simulateAccountBtn = document.getElementById('btn-simulate-account');
+    simulateAccountBtn.addEventListener('click', () => {
+      console.log('Simulating account switch...');
+      const event = new CustomEvent('yt-navigate-finish');
+      window.dispatchEvent(event);
+    });
+
     const addSampleBtn = document.getElementById('btn-add-sample');
     addSampleBtn.addEventListener('click', () => {
       const container = document.getElementById('contents');
@@ -317,7 +330,7 @@
         <div class="mock-details">
           <div class="mock-avatar"></div>
           <div class="mock-meta">
-            <a id="video-title" href="/watch?v=${testId}">Queen - Bohemian Rhapsody (Official Video Remastered)</a>
+            <a id="video-title" href="/watch?v=${testId}" aria-label="Queen - Bohemian Rhapsody 3 minutes, 45 seconds">Queen - Bohemian Rhapsody (Official Video Remastered)</a>
             <ytd-channel-name><span id="text">Queen Official</span></ytd-channel-name>
             <span class="mock-views">1.6B views · 15 years ago</span>
           </div>

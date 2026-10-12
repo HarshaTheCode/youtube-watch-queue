@@ -77,7 +77,7 @@ html[theme="dark"],
   width: 34px !important;
   height: 34px !important;
   border-radius: 50% !important;
-  background: rgba(15, 15, 15, 0.8) !important;
+  background: rgba(15, 15, 15, 0.85) !important;
   backdrop-filter: blur(4px) !important;
   -webkit-backdrop-filter: blur(4px) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -85,21 +85,29 @@ html[theme="dark"],
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  z-index: 99999 !important;
+  z-index: 9999999 !important; /* Topmost stacking context above inline preview player */
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease, transform 150ms ease, background-color 150ms ease !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6) !important;
   box-sizing: border-box !important;
   user-select: none !important;
 }
 
-/* Make sure parent thumbnail container allows absolute positioning */
+/* Parent container position lock */
 .ytq-relative-parent {
   position: relative !important;
 }
 
-/* Show button on ANY card or thumbnail hover */
+/* 
+   Show button whenever:
+   - Card is hovered (via CSS or JS persistent .ytq-card-hovered)
+   - Button itself is hovered or marked .ytq-visible
+   - Thumbnail preview player is active
+   - Video is saved (.ytq-saved)
+*/
+.ytq-card-hovered .ytq-bookmark-btn,
+.ytq-bookmark-btn.ytq-visible,
 ytd-rich-item-renderer:hover .ytq-bookmark-btn,
 yt-lockup-view-model:hover .ytq-bookmark-btn,
 ytd-video-renderer:hover .ytq-bookmark-btn,
@@ -111,6 +119,10 @@ yt-thumbnail-view-model:hover .ytq-bookmark-btn,
 a.yt-lockup-view-model-wiz__content-image:hover .ytq-bookmark-btn,
 [class*="content-image"]:hover .ytq-bookmark-btn,
 a#thumbnail:hover .ytq-bookmark-btn,
+ytd-video-preview:hover .ytq-bookmark-btn,
+ytd-inline-preview-renderer:hover .ytq-bookmark-btn,
+[id="mouseover-overlay"]:hover .ytq-bookmark-btn,
+[id="hover-overlays"]:hover .ytq-bookmark-btn,
 *:hover > .ytq-bookmark-btn,
 .ytq-bookmark-btn:hover,
 .ytq-bookmark-btn.ytq-saved {
@@ -122,7 +134,7 @@ a#thumbnail:hover .ytq-bookmark-btn,
 .ytq-bookmark-btn:hover {
   transform: scale(1.12) !important;
   background: rgba(10, 10, 10, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .ytq-bookmark-btn svg {
@@ -144,8 +156,11 @@ a#thumbnail:hover .ytq-bookmark-btn,
 
 /* Saved state: solid red fill and visible always */
 .ytq-bookmark-btn.ytq-saved {
-  background: rgba(20, 20, 20, 0.9) !important;
+  background: rgba(20, 20, 20, 0.95) !important;
   border-color: var(--ytq-accent-red) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
 }
 
 .ytq-bookmark-btn.ytq-saved path {
@@ -169,14 +184,15 @@ a#thumbnail:hover .ytq-bookmark-btn,
    ========================================================================== */
 
 #ytq-shelf-root {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
+  display: block !important;
+  width: 100% !important;
+  grid-column: 1 / -1 !important; /* Spans full grid width even if injected inside grid */
+  margin: 0 0 16px 0 !important;
+  padding: 0 !important;
   font-family: var(--ytq-font-family);
   background: var(--ytq-bg-primary);
   border-bottom: 1px solid var(--ytq-border);
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   transition: background-color 200ms ease, border-color 200ms ease;
   z-index: 99;
 }

@@ -33,14 +33,14 @@
       THUMBNAIL_CONTAINER: 'yt-thumbnail-view-model, a.yt-lockup-view-model-wiz__content-image, a[class*="content-image"], ytd-thumbnail, #thumbnail, a#thumbnail, .ytd-thumbnail',
       TITLE: '#video-title, #video-title-link, a.yt-simple-endpoint#video-title, .yt-lockup-metadata-view-model-wiz__title, [class*="metadata-view-model"] h3, [class*="metadata-view-model"] a, h3.title-style, h3',
       CHANNEL_NAME: 'ytd-channel-name #text, #channel-name #text, .yt-lockup-metadata-view-model-wiz__text-container a, [class*="channel-name"], ytd-channel-name yt-formatted-string, #channel-info ytd-channel-name, a[href^="/@"]',
-      DURATION_BADGE: 'badge-shape .badge-shape-wiz__text, span.ytd-thumbnail-overlay-time-status-renderer, ytd-thumbnail-overlay-time-status-renderer #text, [class*="thumbnail-overlay-time-status"], [class*="badge-shape-wiz__text"], #time-status span',
+      DURATION_BADGE: 'yt-thumbnail-overlay-badge-view-model badge-shape, yt-thumbnail-overlay-badge-view-model, badge-shape .badge-shape-wiz__text, badge-shape .yt-badge-shape__text, badge-shape, span.ytd-thumbnail-overlay-time-status-renderer, ytd-thumbnail-overlay-time-status-renderer #text, [class*="thumbnail-overlay-time-status"], [class*="badge-shape-wiz__text"], [class*="yt-badge-shape__text"], #time-status span',
       SHELF_MOUNT_PARENT: [
-        'ytd-browse[page-subtype="home"] ytd-rich-grid-renderer #contents',
-        'ytd-browse[page-subtype="home"] #primary ytd-rich-grid-renderer',
-        'ytd-browse[page-subtype="home"] #primary',
-        'ytd-browse ytd-rich-grid-renderer #contents',
-        'ytd-browse ytd-rich-grid-renderer',
-        '#primary #contents',
+        'ytd-browse:not([hidden])[page-subtype="home"] ytd-rich-grid-renderer',
+        'ytd-browse:not([hidden]) ytd-rich-grid-renderer',
+        'ytd-browse[page-subtype="home"]:not([hidden]) #primary ytd-rich-grid-renderer',
+        'ytd-browse:not([hidden]) #primary ytd-rich-grid-renderer',
+        'ytd-browse:not([hidden]) #primary',
+        '#primary ytd-rich-grid-renderer',
         '#primary',
         '#content'
       ],
@@ -76,6 +76,28 @@
       if (parts.length === 2) return parts[0] * 60 + parts[1];
       return parts[0] || 0;
     },
+    parseAriaLabelDuration: function (str) {
+      if (!str || typeof str !== 'string') return null;
+      const hourMatch = str.match(/(\d+)\s*(?:hours?|hrs?)/i);
+      const minMatch = str.match(/(\d+)\s*(?:minutes?|mins?)/i);
+      const secMatch = str.match(/(\d+)\s*(?:seconds?|secs?)/i);
+      if (hourMatch || minMatch || secMatch) {
+        const hours = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+        const mins = minMatch ? parseInt(minMatch[1], 10) : 0;
+        const secs = secMatch ? parseInt(secMatch[1], 10) : 0;
+        const total = hours * 3600 + mins * 60 + secs;
+        if (total > 0) {
+          return { seconds: total, formatted: this.formatDuration(total) };
+        }
+      }
+      const timeMatch = str.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/);
+      if (timeMatch) {
+        const formatted = timeMatch[1];
+        const seconds = this.parseDurationString(formatted);
+        if (seconds > 0) return { seconds, formatted };
+      }
+      return null;
+    },
     getThumbnailUrl: function (id) {
       return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
     }
@@ -93,6 +115,9 @@
   let mutationObserver = null;
   let debounceTimeout = null;
 
+  // In-memory cache for pre-cached video duration
+  const durationCache = new Map();
+
   // SVG Icons
   const ICONS = {
     BOOKMARK: '<svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>',
@@ -106,7 +131,7 @@
   };
 
   /**
-   * Non-blocking message sender with strict timeout
+   * Safe messaging with strict timeout
    */
   function sendMessage(msg, timeoutMs = 2000) {
     return new Promise((resolve) => {
@@ -218,7 +243,7 @@
   }
 
   // =========================================================================
-  // FEATURE 1: ONE-CLICK BOOKMARK CAPTURE
+  // FEATURE 1: ONE-CLICK BOOKMARK CAPTURE & HOVER PRESERVATION
   // =========================================================================
 
   /**
@@ -227,7 +252,6 @@
   function extractVideoIdFromElement(el) {
     if (!el) return null;
 
-    // Check all child links
     const links = el.querySelectorAll('a[href*="/watch?v="], a[href*="/shorts/"], a#thumbnail, a#video-title-link, a#video-title, a[class*="content-image"]');
     for (const a of links) {
       const href = a.getAttribute('href') || a.href;
@@ -235,7 +259,6 @@
       if (vid) return vid;
     }
 
-    // Check element itself if it is a link
     if (el.tagName === 'A') {
       const href = el.getAttribute('href') || el.href;
       const vid = CONSTANTS.extractVideoId(href);
@@ -246,7 +269,7 @@
   }
 
   /**
-   * Helper to locate thumbnail container element inside a video card
+   * Locate thumbnail container element inside a video card
    */
   function findThumbnailContainer(card) {
     const selectors = [
@@ -264,7 +287,6 @@
       if (found) return found;
     }
 
-    // Fallback: look for an anchor containing an image
     const imgs = card.querySelectorAll('img');
     for (const img of imgs) {
       const parentA = img.closest('a');
@@ -275,9 +297,69 @@
   }
 
   /**
+   * Robust duration extractor that checks:
+   * 1. In-memory duration cache & pre-cached button dataset
+   * 2. Modern & classic DOM duration badges
+   * 3. Natural language aria-labels on title links and thumbnail links
+   */
+  function extractDuration(card, videoId, btn) {
+    // 1. Check pre-cached dataset on existing button
+    if (btn && btn.dataset.durationFormatted && btn.dataset.durationFormatted !== '0:00') {
+      const sec = parseInt(btn.dataset.durationSeconds, 10) || CONSTANTS.parseDurationString(btn.dataset.durationFormatted);
+      return { formatted: btn.dataset.durationFormatted, seconds: sec };
+    }
+
+    // 2. Check in-memory cache
+    if (videoId && durationCache.has(videoId)) {
+      const cached = durationCache.get(videoId);
+      if (cached && cached.formatted !== '0:00') {
+        return cached;
+      }
+    }
+
+    // 3. Scan DOM duration badge elements
+    const badgeElements = card.querySelectorAll(CONSTANTS.SELECTORS.DURATION_BADGE);
+    for (const badge of badgeElements) {
+      const text = badge.textContent ? badge.textContent.trim() : '';
+      if (text && text.includes(':')) {
+        const sec = CONSTANTS.parseDurationString(text);
+        if (sec > 0) {
+          const res = { formatted: text, seconds: sec };
+          if (videoId) durationCache.set(videoId, res);
+          return res;
+        }
+      }
+      // Check badge aria-label
+      const aria = badge.getAttribute('aria-label');
+      if (aria) {
+        const parsed = CONSTANTS.parseAriaLabelDuration(aria);
+        if (parsed && parsed.seconds > 0) {
+          if (videoId) durationCache.set(videoId, parsed);
+          return parsed;
+        }
+      }
+    }
+
+    // 4. Scan aria-label on links (title link, thumbnail link)
+    const links = card.querySelectorAll('a#video-title, a#video-title-link, a.yt-lockup-metadata-view-model-wiz__title, a#thumbnail, a[class*="content-image"]');
+    for (const a of links) {
+      const aria = a.getAttribute('aria-label');
+      if (aria) {
+        const parsed = CONSTANTS.parseAriaLabelDuration(aria);
+        if (parsed && parsed.seconds > 0) {
+          if (videoId) durationCache.set(videoId, parsed);
+          return parsed;
+        }
+      }
+    }
+
+    return { formatted: '0:00', seconds: 0 };
+  }
+
+  /**
    * Extract video metadata from video card
    */
-  function extractVideoMetadata(card, videoId) {
+  function extractVideoMetadata(card, videoId, btn) {
     try {
       // 1. Title
       let title = 'YouTube Video';
@@ -322,36 +404,16 @@
         }
       }
 
-      // 3. Duration
-      let durationFormatted = '0:00';
-      let durationSeconds = 0;
-      const durationSelectors = [
-        'badge-shape .badge-shape-wiz__text',
-        'span.ytd-thumbnail-overlay-time-status-renderer',
-        'ytd-thumbnail-overlay-time-status-renderer #text',
-        '[class*="thumbnail-overlay-time-status"]',
-        '[class*="badge-shape-wiz__text"]',
-        '#time-status span',
-      ];
-      for (const sel of durationSelectors) {
-        const el = card.querySelector(sel);
-        if (el && el.textContent && el.textContent.trim()) {
-          const text = el.textContent.trim();
-          if (text.includes(':')) {
-            durationFormatted = text;
-            durationSeconds = CONSTANTS.parseDurationString(text);
-            break;
-          }
-        }
-      }
+      // 3. Duration (pre-cached + badge + aria-label)
+      const durationInfo = extractDuration(card, videoId, btn);
 
       return {
         id: videoId,
         title,
         channelName: channelName || 'YouTube Channel',
         thumbnailUrl: CONSTANTS.getThumbnailUrl(videoId),
-        durationSeconds,
-        durationFormatted,
+        durationSeconds: durationInfo.seconds,
+        durationFormatted: durationInfo.formatted,
         savedAt: new Date().toISOString(),
         progress: 0,
         lastWatchedAt: null,
@@ -374,12 +436,29 @@
   }
 
   /**
+   * Bind card-level persistent hover events to keep the bookmark button visible
+   * even when YouTube inline playback / mouseover-overlay activates.
+   */
+  function bindCardHoverEvents(card, btn) {
+    if (!card || card.dataset.ytqHoverBound === 'true') return;
+    card.dataset.ytqHoverBound = 'true';
+
+    card.addEventListener('mouseenter', () => {
+      card.classList.add('ytq-card-hovered');
+      if (btn) btn.classList.add('ytq-visible');
+    });
+
+    card.addEventListener('mouseleave', () => {
+      card.classList.remove('ytq-card-hovered');
+      if (btn) btn.classList.remove('ytq-visible');
+    });
+  }
+
+  /**
    * Injects or updates the bookmark ribbon on a video thumbnail
    */
   function injectBookmarkButton(card) {
     if (!card || card.nodeType !== Node.ELEMENT_NODE) return;
-
-    // Avoid injecting into our own shelf cards
     if (card.closest('#ytq-shelf-root')) return;
 
     const videoId = extractVideoIdFromElement(card);
@@ -428,9 +507,16 @@
         }
       });
 
+      // Pre-cache duration immediately before user hovers or hover-preview activates
+      const durationInfo = extractDuration(card, videoId, null);
+      if (durationInfo.seconds > 0) {
+        btn.dataset.durationFormatted = durationInfo.formatted;
+        btn.dataset.durationSeconds = String(durationInfo.seconds);
+      }
+
       thumbContainer.appendChild(btn);
     } else {
-      // Update existing button
+      // Button already exists: update saved state
       if (isSaved) {
         btn.classList.add('ytq-saved');
         btn.title = 'In Watch Queue (Click to remove)';
@@ -440,7 +526,19 @@
         btn.title = 'Add to Watch Queue';
         btn.setAttribute('aria-label', 'Add to Watch Queue');
       }
+
+      // Update cached duration if it was missing previously
+      if (!btn.dataset.durationFormatted || btn.dataset.durationFormatted === '0:00') {
+        const durationInfo = extractDuration(card, videoId, btn);
+        if (durationInfo.seconds > 0) {
+          btn.dataset.durationFormatted = durationInfo.formatted;
+          btn.dataset.durationSeconds = String(durationInfo.seconds);
+        }
+      }
     }
+
+    // Attach card-level hover handlers so button never disappears mid-hover
+    bindCardHoverEvents(card, btn);
   }
 
   /**
@@ -480,7 +578,7 @@
       });
     } else {
       // Add
-      const videoData = extractVideoMetadata(card, videoId);
+      const videoData = extractVideoMetadata(card, videoId, btn);
 
       btn.classList.add('ytq-saved', 'ytq-animating');
       setTimeout(() => btn.classList.remove('ytq-animating'), 350);
@@ -507,7 +605,6 @@
    */
   function scanAndInjectBookmarks() {
     const page = getPageType();
-    // Do not inject on watch page or shorts viewer
     if (page === 'watch' || page === 'shorts') return;
 
     // 1. Scan primary card containers
@@ -527,17 +624,28 @@
   }
 
   // =========================================================================
-  // FEATURE 3: COLLAPSIBLE TOP SHELF ON HOME PAGE
+  // FEATURE 3: COLLAPSIBLE TOP SHELF ON HOME PAGE (STRICTLY ACTIVE VIEW CONTAINER)
   // =========================================================================
 
-  function getShelfMountPoint() {
-    for (const selector of CONSTANTS.SELECTORS.SHELF_MOUNT_PARENT) {
-      try {
-        const el = document.querySelector(selector);
-        if (el) return el;
-      } catch (e) {}
-    }
-    return null;
+  /**
+   * Find the active, non-hidden YouTube browse and grid container
+   */
+  function getActiveHomeGrid() {
+    // Look for active visible browse instance
+    const activeBrowse = document.querySelector('ytd-browse:not([hidden])[page-subtype="home"]') ||
+                         document.querySelector('ytd-browse:not([hidden])') ||
+                         document.querySelector('ytd-browse[page-subtype="home"]') ||
+                         document.querySelector('ytd-browse');
+
+    if (!activeBrowse) return null;
+
+    const richGrid = activeBrowse.querySelector('ytd-rich-grid-renderer');
+    if (richGrid) return richGrid;
+
+    const primary = activeBrowse.querySelector('#primary');
+    if (primary) return primary;
+
+    return activeBrowse;
   }
 
   function ensureShelfElement() {
@@ -547,21 +655,39 @@
       return null;
     }
 
-    let shelf = document.getElementById('ytq-shelf-root');
-    if (!shelf) {
-      const mount = getShelfMountPoint();
-      if (!mount) return null;
+    const mountParent = getActiveHomeGrid();
+    if (!mountParent) return null;
 
+    let shelf = document.getElementById('ytq-shelf-root');
+
+    // If shelf already exists, check if it was orphaned inside a hidden browse element
+    if (shelf) {
+      const currentParent = shelf.parentElement;
+      const isInsideHidden = shelf.closest('ytd-browse[hidden]') !== null;
+
+      // If attached inside hidden browse or wrong parent, re-mount to active view
+      if (isInsideHidden || (currentParent && currentParent !== mountParent)) {
+        shelf.remove();
+        shelf = null;
+      }
+    }
+
+    if (!shelf) {
       shelf = document.createElement('div');
       shelf.id = 'ytq-shelf-root';
       shelf.className = currentSettings.shelfExpanded ? 'ytq-expanded' : 'ytq-collapsed';
 
-      if (mount.firstChild) {
-        mount.insertBefore(shelf, mount.firstChild);
+      // Insert as direct child of ytd-rich-grid-renderer BEFORE #contents (NEVER inside grid cells)
+      const contentsEl = mountParent.querySelector('#contents');
+      if (contentsEl && contentsEl.parentElement === mountParent) {
+        mountParent.insertBefore(shelf, contentsEl);
+      } else if (mountParent.firstChild) {
+        mountParent.insertBefore(shelf, mountParent.firstChild);
       } else {
-        mount.appendChild(shelf);
+        mountParent.appendChild(shelf);
       }
     }
+
     return shelf;
   }
 
@@ -657,7 +783,7 @@
             <div class="ytq-card-thumb-wrap">
               <img class="ytq-card-thumb" src="${escapeHtml(video.thumbnailUrl)}" alt="${escapeHtml(video.title)}" loading="lazy" />
               
-              ${video.durationFormatted ? `<span class="ytq-card-duration">${escapeHtml(video.durationFormatted)}</span>` : ''}
+              ${video.durationFormatted && video.durationFormatted !== '0:00' ? `<span class="ytq-card-duration">${escapeHtml(video.durationFormatted)}</span>` : ''}
 
               ${
                 isWatched
@@ -983,8 +1109,7 @@
       debounceTimeout = setTimeout(() => {
         const page = getPageType();
         if (page === 'home') {
-          const shelf = document.getElementById('ytq-shelf-root');
-          if (!shelf) renderShelf();
+          renderShelf();
         }
         if (page !== 'watch' && page !== 'shorts') {
           scanAndInjectBookmarks();
@@ -1013,17 +1138,14 @@
   // =========================================================================
 
   async function init() {
-    // 1. Immediately setup observer and initial scans without waiting on background worker
     setupMutationObserver();
     handlePageChange();
     scanAndInjectBookmarks();
 
-    // Re-scan periodically during initial page load/hydration
     [300, 800, 1500, 3000, 5000].forEach((delay) => {
       setTimeout(scanAndInjectBookmarks, delay);
     });
 
-    // 2. Fetch persisted state in background and refresh UI
     await initState();
     if (getPageType() === 'home') {
       renderShelf();
@@ -1036,7 +1158,6 @@
     window.addEventListener('spfdone', handlePageChange);
     window.addEventListener('popstate', handlePageChange);
 
-    // Cross-tab and service worker broadcasts
     chrome.runtime.onMessage.addListener((message) => {
       if (!message || !message.type) return;
 

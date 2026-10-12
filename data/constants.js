@@ -95,24 +95,29 @@
       'a[href*="/channel/"]',
     ].join(', '),
 
-    // Duration badge overlay selectors
+    // Duration badge overlay selectors (including modern 2025/2026 badge-view-model)
     DURATION_BADGE: [
+      'yt-thumbnail-overlay-badge-view-model badge-shape',
+      'yt-thumbnail-overlay-badge-view-model',
       'badge-shape .badge-shape-wiz__text',
+      'badge-shape .yt-badge-shape__text',
+      'badge-shape',
       'span.ytd-thumbnail-overlay-time-status-renderer',
       'ytd-thumbnail-overlay-time-status-renderer #text',
       '[class*="thumbnail-overlay-time-status"]',
       '[class*="badge-shape-wiz__text"]',
+      '[class*="yt-badge-shape__text"]',
       '#time-status span',
     ].join(', '),
 
-    // Main browse container where shelf should be injected
+    // Main browse container where shelf should be injected (strictly targeting active non-hidden views)
     SHELF_MOUNT_PARENT: [
-      'ytd-browse[page-subtype="home"] ytd-rich-grid-renderer #contents',
-      'ytd-browse[page-subtype="home"] #primary ytd-rich-grid-renderer',
-      'ytd-browse[page-subtype="home"] #primary',
-      'ytd-browse ytd-rich-grid-renderer #contents',
-      'ytd-browse ytd-rich-grid-renderer',
-      '#primary #contents',
+      'ytd-browse:not([hidden])[page-subtype="home"] ytd-rich-grid-renderer',
+      'ytd-browse:not([hidden]) ytd-rich-grid-renderer',
+      'ytd-browse[page-subtype="home"]:not([hidden]) #primary ytd-rich-grid-renderer',
+      'ytd-browse:not([hidden]) #primary ytd-rich-grid-renderer',
+      'ytd-browse:not([hidden]) #primary',
+      '#primary ytd-rich-grid-renderer',
       '#primary',
       '#content',
     ],
@@ -120,13 +125,22 @@
     // Video player elements for progress tracking
     PLAYER_VIDEO: 'video.html5-main-video, video',
     PLAYER_CONTAINER: '#movie_player',
+
+    // Inline preview containers that appear on thumbnail hover
+    PREVIEW_CONTAINERS: [
+      'ytd-video-preview',
+      'ytd-inline-preview-renderer',
+      '#mouseover-overlay',
+      '#hover-overlays',
+      '#inline-preview-player',
+    ].join(', '),
   };
 
   // Utility Functions
   function extractVideoId(urlOrStr) {
     if (!urlOrStr || typeof urlOrStr !== 'string') return null;
     try {
-      const parsed = new URL(urlOrStr, 'https://www.youtube.com');
+      const parsed = new URL(urlOrStr, window.location.origin || 'https://www.youtube.com');
       const v = parsed.searchParams.get('v');
       if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
 
@@ -174,6 +188,46 @@
     return parts[0] || 0;
   }
 
+  /**
+   * Parse natural language duration from YouTube's aria-label attributes.
+   * Example: "Never Gonna Give You Up by Rick Astley ... 3 minutes, 33 seconds ..."
+   * Example: "1 hour, 14 minutes, 20 seconds"
+   * Example: "45 seconds"
+   */
+  function parseAriaLabelDuration(str) {
+    if (!str || typeof str !== 'string') return null;
+
+    // Check for explicit "X hours, Y minutes, Z seconds"
+    const hourMatch = str.match(/(\d+)\s*(?:hours?|hrs?)/i);
+    const minMatch = str.match(/(\d+)\s*(?:minutes?|mins?)/i);
+    const secMatch = str.match(/(\d+)\s*(?:seconds?|secs?)/i);
+
+    if (hourMatch || minMatch || secMatch) {
+      const hours = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+      const mins = minMatch ? parseInt(minMatch[1], 10) : 0;
+      const secs = secMatch ? parseInt(secMatch[1], 10) : 0;
+      const totalSeconds = hours * 3600 + mins * 60 + secs;
+      if (totalSeconds > 0) {
+        return {
+          seconds: totalSeconds,
+          formatted: formatDuration(totalSeconds),
+        };
+      }
+    }
+
+    // Check for inline timestamp regex like "3:33" or "1:02:15"
+    const timeMatch = str.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/);
+    if (timeMatch) {
+      const formatted = timeMatch[1];
+      const seconds = parseDurationString(formatted);
+      if (seconds > 0) {
+        return { seconds, formatted };
+      }
+    }
+
+    return null;
+  }
+
   function getThumbnailUrl(videoId) {
     if (!videoId) return '';
     return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -188,6 +242,7 @@
     extractVideoId,
     formatDuration,
     parseDurationString,
+    parseAriaLabelDuration,
     getThumbnailUrl,
   };
 });

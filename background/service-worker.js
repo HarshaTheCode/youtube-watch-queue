@@ -29,6 +29,7 @@ const {
     RESTORE_VIDEOS: 'YTQ_RESTORE_VIDEOS',
     GET_SETTINGS: 'YTQ_GET_SETTINGS',
     UPDATE_SETTINGS: 'YTQ_UPDATE_SETTINGS',
+    UPDATE_DURATION: 'YTQ_UPDATE_DURATION',
     QUEUE_UPDATED: 'YTQ_QUEUE_UPDATED',
   },
 });
@@ -123,15 +124,93 @@ function notifyTabs(message) {
   } catch (e) {}
 }
 
-// Initial badge update on service worker launch
+let isRepairingDurations = false;
+
+/**
+ * Auto-backfill missing durations for saved videos by querying YouTube watch page HTML
+ */
+async function repairMissingDurations() {
+  if (isRepairingDurations) return;
+  isRepairingDurations = true;
+
+  try {
+    const queue = await getQueue();
+    const missing = queue.filter(
+      (v) => !v.durationSeconds || v.durationSeconds <= 0 || !v.durationFormatted || v.durationFormatted === '0:00'
+    );
+    if (missing.length === 0) return;
+
+    let updatedAny = false;
+    for (const video of missing) {
+      try {
+        const res = await fetch(`https://www.youtube.com/watch?v=${video.id}`, {
+          headers: {
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        });
+        if (res.ok) {
+          const html = await res.text();
+          let seconds = 0;
+
+          // 1. Try lengthSeconds from player response
+          const m1 = html.match(/"lengthSeconds":"(\d+)"/);
+          if (m1 && m1[1]) {
+            seconds = parseInt(m1[1], 10);
+          }
+
+          // 2. Try approxDurationMs
+          if (!seconds) {
+            const m3 = html.match(/"approxDurationMs":"(\d+)"/);
+            if (m3 && m3[1]) {
+              seconds = Math.round(parseInt(m3[1], 10) / 1000);
+            }
+          }
+
+          // 3. Try itemprop="duration"
+          if (!seconds) {
+            const m2 = html.match(/itemprop="duration"\s+content="PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?"/i);
+            if (m2) {
+              const h = parseInt(m2[1] || '0', 10);
+              const m = parseInt(m2[2] || '0', 10);
+              const s = parseInt(m2[3] || '0', 10);
+              seconds = h * 3600 + m * 60 + s;
+            }
+          }
+
+          if (seconds > 0) {
+            video.durationSeconds = seconds;
+            const formatFn =
+              typeof YTQ_CONSTANTS !== 'undefined' && YTQ_CONSTANTS.formatDuration
+                ? YTQ_CONSTANTS.formatDuration
+                : (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+            video.durationFormatted = formatFn(seconds);
+            updatedAny = true;
+          }
+        }
+      } catch (err) {
+        console.warn('YTQ: Could not repair duration for', video.id, err);
+      }
+    }
+
+    if (updatedAny) {
+      await setQueue(queue);
+    }
+  } finally {
+    isRepairingDurations = false;
+  }
+}
+
+// Initial badge update on service worker launch & repair missing durations
 chrome.runtime.onInstalled.addListener(async () => {
   const queue = await getQueue();
   await updateBadge(queue);
+  repairMissingDurations();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   const queue = await getQueue();
   await updateBadge(queue);
+  repairMissingDurations();
 });
 
 // Main message dispatcher
@@ -144,6 +223,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case MESSAGE_TYPES.GET_QUEUE: {
           const queue = await getQueue();
           sendResponse({ success: true, queue });
+          if (queue.some((v) => !v.durationSeconds || v.durationFormatted === '0:00')) {
+            repairMissingDurations();
+          }
           break;
         }
 
@@ -175,10 +257,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           };
 
           if (existingIndex >= 0) {
+            const old = queue[existingIndex];
+            const hasNewDuration = record.durationSeconds > 0 && record.durationFormatted !== '0:00';
             queue[existingIndex] = {
-              ...queue[existingIndex],
+              ...old,
               ...record,
-              savedAt: queue[existingIndex].savedAt,
+              savedAt: old.savedAt,
+              durationSeconds: hasNewDuration ? record.durationSeconds : (old.durationSeconds || 0),
+              durationFormatted: hasNewDuration ? record.durationFormatted : (old.durationFormatted || '0:00'),
             };
           } else {
             queue.unshift(record);
@@ -186,6 +272,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
           await setQueue(queue);
           sendResponse({ success: true, queue, video: record });
+
+          if (!record.durationSeconds || record.durationFormatted === '0:00') {
+            repairMissingDurations();
+          }
+          break;
+        }
+
+        case MESSAGE_TYPES.UPDATE_DURATION: {
+          const { videoId, durationSeconds, durationFormatted } = message;
+          if (!videoId || typeof durationSeconds !== 'number' || durationSeconds <= 0) {
+            sendResponse({ success: false, error: 'Invalid duration params' });
+            return;
+          }
+
+          const queue = await getQueue();
+          const target = queue.find((v) => v.id === videoId);
+          if (target && (!target.durationSeconds || target.durationFormatted === '0:00')) {
+            target.durationSeconds = durationSeconds;
+            const formatFn =
+              typeof YTQ_CONSTANTS !== 'undefined' && YTQ_CONSTANTS.formatDuration
+                ? YTQ_CONSTANTS.formatDuration
+                : (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+            target.durationFormatted = durationFormatted || formatFn(durationSeconds);
+            await setQueue(queue);
+            sendResponse({ success: true, queue });
+          } else {
+            sendResponse({ success: true, ignored: true });
+          }
           break;
         }
 
@@ -233,8 +347,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             isWatched,
           };
 
-          if (typeof durationSeconds === 'number' && durationSeconds > 0 && !currentVideo.durationSeconds) {
+          if (typeof durationSeconds === 'number' && durationSeconds > 0) {
             updatedVideo.durationSeconds = durationSeconds;
+            if (!updatedVideo.durationFormatted || updatedVideo.durationFormatted === '0:00') {
+              const formatFn = typeof YTQ_CONSTANTS !== 'undefined' && YTQ_CONSTANTS.formatDuration
+                ? YTQ_CONSTANTS.formatDuration
+                : (s) => `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+              updatedVideo.durationFormatted = formatFn(durationSeconds);
+            }
           }
 
           queue[index] = updatedVideo;

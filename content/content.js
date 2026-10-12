@@ -297,10 +297,26 @@
   }
 
   /**
+   * Helper to resolve the outermost container element for a video card
+   */
+  function getFullCardContainer(el) {
+    if (!el) return null;
+    return (
+      el.closest(CONSTANTS.SELECTORS.VIDEO_CARD) ||
+      el.closest('ytd-rich-item-renderer, yt-lockup-view-model, ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-rich-grid-media') ||
+      el.closest('#dismissible') ||
+      (el.closest('ytd-thumbnail') ? el.closest('ytd-thumbnail').parentElement : null) ||
+      el.parentElement ||
+      el
+    );
+  }
+
+  /**
    * Robust duration extractor that checks:
    * 1. In-memory duration cache & pre-cached button dataset
    * 2. Modern & classic DOM duration badges
    * 3. Natural language aria-labels on title links and thumbnail links
+   * 4. Outer container aria-labels and raw text overlays
    */
   function extractDuration(card, videoId, btn) {
     // 1. Check pre-cached dataset on existing button
@@ -317,8 +333,13 @@
       }
     }
 
+    const fullCard = getFullCardContainer(card) || card;
+
     // 3. Scan DOM duration badge elements
-    const badgeElements = card.querySelectorAll(CONSTANTS.SELECTORS.DURATION_BADGE);
+    const badgeElements = fullCard.querySelectorAll(
+      CONSTANTS.SELECTORS.DURATION_BADGE +
+      ', [class*="thumbnail-overlay-time-status"], [class*="time-status"], [class*="badge-shape-wiz__text"], [class*="yt-badge-shape__text"]'
+    );
     for (const badge of badgeElements) {
       const text = badge.textContent ? badge.textContent.trim() : '';
       if (text && text.includes(':')) {
@@ -340,8 +361,10 @@
       }
     }
 
-    // 4. Scan aria-label on links (title link, thumbnail link)
-    const links = card.querySelectorAll('a#video-title, a#video-title-link, a.yt-lockup-metadata-view-model-wiz__title, a#thumbnail, a[class*="content-image"]');
+    // 4. Scan aria-label on links (title link, thumbnail link, watch links)
+    const links = fullCard.querySelectorAll(
+      'a[href*="/watch?v="], a#video-title, a#video-title-link, a.yt-lockup-metadata-view-model-wiz__title, a#thumbnail, a[class*="content-image"]'
+    );
     for (const a of links) {
       const aria = a.getAttribute('aria-label');
       if (aria) {
@@ -353,6 +376,16 @@
       }
     }
 
+    // 5. Check container's own aria-label
+    const containerAria = fullCard.getAttribute('aria-label');
+    if (containerAria) {
+      const parsed = CONSTANTS.parseAriaLabelDuration(containerAria);
+      if (parsed && parsed.seconds > 0) {
+        if (videoId) durationCache.set(videoId, parsed);
+        return parsed;
+      }
+    }
+
     return { formatted: '0:00', seconds: 0 };
   }
 
@@ -360,6 +393,7 @@
    * Extract video metadata from video card
    */
   function extractVideoMetadata(card, videoId, btn) {
+    const fullCard = getFullCardContainer(card) || card;
     try {
       // 1. Title
       let title = 'YouTube Video';
@@ -374,7 +408,7 @@
         'h3',
       ];
       for (const sel of titleSelectors) {
-        const el = card.querySelector(sel);
+        const el = fullCard.querySelector(sel);
         if (el) {
           const text = (el.textContent || el.getAttribute('title') || el.getAttribute('aria-label') || '').trim();
           if (text) {
@@ -397,7 +431,7 @@
         'a[href*="/channel/"]',
       ];
       for (const sel of channelSelectors) {
-        const el = card.querySelector(sel);
+        const el = fullCard.querySelector(sel);
         if (el && el.textContent && el.textContent.trim()) {
           channelName = el.textContent.trim();
           break;
@@ -405,7 +439,7 @@
       }
 
       // 3. Duration (pre-cached + badge + aria-label)
-      const durationInfo = extractDuration(card, videoId, btn);
+      const durationInfo = extractDuration(fullCard, videoId, btn);
 
       return {
         id: videoId,
@@ -601,6 +635,43 @@
   }
 
   /**
+   * Inspect current DOM to populate missing durations for any saved queue items
+   */
+  function backfillDurationsFromPage() {
+    if (!currentQueue || currentQueue.length === 0) return;
+    const missingVideos = currentQueue.filter(
+      (v) => !v.durationSeconds || v.durationSeconds <= 0 || !v.durationFormatted || v.durationFormatted === '0:00'
+    );
+    if (missingVideos.length === 0) return;
+
+    let updatedAny = false;
+    for (const video of missingVideos) {
+      const link = document.querySelector(`a[href*="${video.id}"]:not(#ytq-shelf-root a)`);
+      if (link) {
+        const card = getFullCardContainer(link);
+        if (card) {
+          const durationInfo = extractDuration(card, video.id, null);
+          if (durationInfo && durationInfo.seconds > 0) {
+            video.durationSeconds = durationInfo.seconds;
+            video.durationFormatted = durationInfo.formatted;
+            updatedAny = true;
+            sendMessage({
+              type: CONSTANTS.MESSAGE_TYPES.UPDATE_DURATION || 'YTQ_UPDATE_DURATION',
+              videoId: video.id,
+              durationSeconds: durationInfo.seconds,
+              durationFormatted: durationInfo.formatted,
+            });
+          }
+        }
+      }
+    }
+
+    if (updatedAny) {
+      renderShelf(true);
+    }
+  }
+
+  /**
    * Universal scanner: finds both cards and direct thumbnail anchors
    */
   function scanAndInjectBookmarks() {
@@ -616,18 +687,21 @@
     // 2. Fallback scan: any direct anchor linking to a video
     const thumbLinks = document.querySelectorAll('a[href*="/watch?v="]:not(#ytq-shelf-root a)');
     thumbLinks.forEach((a) => {
-      const card = a.closest(CONSTANTS.SELECTORS.VIDEO_CARD) || a.parentElement;
+      const card = getFullCardContainer(a) || a.parentElement;
       if (card) {
         injectBookmarkButton(card);
       }
     });
+
+    // 3. Backfill any missing durations for saved videos currently on page
+    backfillDurationsFromPage();
   }
 
   // Signature of last rendered queue state to prevent redundant DOM wipes
   let lastRenderedSignature = '';
 
   function getQueueSignature() {
-    return currentQueue.map((v) => `${v.id}:${v.progress}:${v.isWatched}:${v.durationFormatted}`).join('|') +
+    return currentQueue.map((v) => `${v.id}:${v.progress}:${v.isWatched}:${v.durationFormatted}:${v.durationSeconds}`).join('|') +
            `_${Boolean(currentSettings.shelfExpanded)}`;
   }
 
@@ -795,7 +869,12 @@
             <div class="ytq-card-thumb-wrap">
               <img class="ytq-card-thumb" src="${escapeHtml(video.thumbnailUrl)}" alt="${escapeHtml(video.title)}" loading="lazy" />
               
-              ${video.durationFormatted && video.durationFormatted !== '0:00' ? `<span class="ytq-card-duration">${escapeHtml(video.durationFormatted)}</span>` : ''}
+              ${(() => {
+                const durationText = (video.durationFormatted && video.durationFormatted !== '0:00')
+                  ? video.durationFormatted
+                  : (video.durationSeconds > 0 ? CONSTANTS.formatDuration(video.durationSeconds) : '');
+                return durationText ? `<span class="ytq-card-duration">${escapeHtml(durationText)}</span>` : '';
+              })()}
 
               ${
                 isWatched

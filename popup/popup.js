@@ -120,7 +120,12 @@
       li.innerHTML = `
         <div class="item-thumb-wrap">
           <img class="item-thumb" src="${escapeHtml(video.thumbnailUrl)}" alt="" loading="lazy">
-          ${video.durationFormatted ? `<span class="item-duration">${escapeHtml(video.durationFormatted)}</span>` : ''}
+          ${(() => {
+            const dur = (video.durationFormatted && video.durationFormatted !== '0:00')
+              ? video.durationFormatted
+              : (video.durationSeconds > 0 ? (CONSTANTS.formatDuration ? CONSTANTS.formatDuration(video.durationSeconds) : '') : '');
+            return dur ? `<span class="item-duration">${escapeHtml(dur)}</span>` : '';
+          })()}
           <div class="item-progress-track">
             <div class="item-progress-fill" style="width: ${video.isWatched ? 100 : progress}%"></div>
           </div>
